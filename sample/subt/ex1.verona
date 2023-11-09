@@ -1,0 +1,20 @@
+class Subtype[S, T] where S < T {}
+
+class EqType[S, T] where S < T & T < S {}
+
+class A {}
+class B {}
+
+type Storage[T] = {
+    set(self: Self, n: T) : T
+    get(self: Self) : T
+}
+// == { set: ... } & { get: ... }
+
+class Cell[T] {
+    let e : T
+    set(self: Cell[T], n : T) : T
+    get(self: Cell[T]) : T
+}
+
+let x : Subtype[

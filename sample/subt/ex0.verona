@@ -1,0 +1,6 @@
+class Subtype[S, T] where S < T {}
+
+class A {}
+class B {}
+
+let x : Subtype[A, B]

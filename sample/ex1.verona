@@ -1,0 +1,7 @@
+class Subtype[S, T] where S < T {
+//  create() : Subtype[S, T] { new () }
+}
+
+let x : Subtype[I32, I32]
+
+
