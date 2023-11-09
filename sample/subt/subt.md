@@ -50,6 +50,7 @@ t ::= t | t
 //    | α                 (type alias)
 //    | t where t
 //    | Self
+    | ∀x. t
 
 //    | c[X...]  (why do we not care about these?)
 
@@ -80,23 +81,25 @@ o ⊢ { f[X, Z](X) : X }
 =>
 o ⊢ { f[X, Z](Z) : X }
 
-o ⊢ X   iff   True
-
 // how does subtyping of methods with type parameters work?
 o ⊢ { f[X...](A...) : B where C }   iff
-    mtype(o, f) = [X'...](A'...) : B' where C'                              ∧ 
-    ∀T... .
-        ((exists o'.   o' ⊢ C[T.../X...])   iff   (exists o'.   o' ⊢ C'[T.../X'...]))   implies // can we replace ∃ with ∀?
-            (forall i, o'.   o' ⊢ Ai[T.../X...]    implies    o' ⊢ A'i[T.../X'...])   ∧ // same number of parameters. instantiation of X...?
-            (forall o'.   o' ⊢ B'[T.../X'...]   implies   o' ⊢ B[T.../X...])
+    mtype(o, f) = [X'...](A'...) : B' where C'                              ∧  // same number of parameters X... and X'..., A... and A'...
+    forall T... .
+        ((forall o'.   o' ⊢ C[T.../X...])   implies   (forall o'.   o' ⊢ C'[T.../X'...]))   ∧
+        (forall i, o'.   o' ⊢ Ai[T.../X...]    implies    o' ⊢ A'i[T.../X'...])   ∧
+        (forall o'.   o' ⊢ B'[T.../X'...]   implies   o' ⊢ B[T.../X...])
 
     // recursiveness?
 
 // this definition could mean we can boil down a lot of things into
 // conjunction with subtyping type
-// A[T] where T <: B  =def= A[T] & T <: B  =def= ∀T. A[T] & (T <: B)
+// type A[T] where (T <: B)  (== A[T] & (T <: B))  == ∀T. A[T] & (T <: B)
+// o ⊢ (∀T. A[T] & (T <: B)) [B] ==> o ⊢ A[B] & (B <: B) ==> o ⊢ A[B]   ∧   o ⊢ (B <: B)
 o ⊢ A <: B  iff
     forall o'. o' ⊢ A    implies    o' ⊢ B
+
+
+o ⊢ Top   iff   True
 
 // o ⊢ C[t...] iff
 //     cname(o) == C    ∧    carg(o, i) <:> ti
@@ -121,6 +124,10 @@ o ⊢ A[X...] where B   iff
 o ⊢ α[t...]   iff
     lookup(α) = t'[X...]    ∧
     o ⊢ t'[t.../X...]
+```
+
+```verona
+type C[T] where T < B = {...}
 ```
 
 ```

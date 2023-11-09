@@ -5,11 +5,21 @@ class EqType[S, T] where S < T & T < S {}
 class A {}
 class B {}
 
-type Storage[T] = {
+type Storage = ∀T. {
+    set(self: Self, n: T) : T
+} & {
+    get(self: Self) : T
+} & (T <: A)
+type Storage[T] where T <: A = {
     set(self: Self, n: T) : T
     get(self: Self) : T
 }
 // == { set: ... } & { get: ... }
+
+
+{ f[X](x : X) : T where C }
+
+{ f : ∀X. ((x : X) : T) & C }
 
 class Cell[T] {
     let e : T
@@ -17,4 +27,4 @@ class Cell[T] {
     get(self: Cell[T]) : T
 }
 
-let x : Subtype[
+let x : Subtype[Cell
