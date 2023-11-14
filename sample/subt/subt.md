@@ -51,6 +51,7 @@ t ::= t | t
 //    | t where t
 //    | Self
     | ∀x. t
+    | t <: t
 
 //    | c[X...]  (why do we not care about these?)
 
@@ -99,7 +100,7 @@ o ⊢ A <: B  iff
     forall o'. o' ⊢ A    implies    o' ⊢ B
 
 
-o ⊢ Top   iff   True
+o ⊢ Top
 
 // o ⊢ C[t...] iff
 //     cname(o) == C    ∧    carg(o, i) <:> ti
@@ -107,11 +108,19 @@ o ⊢ Top   iff   True
 o ⊢ C[A...] iff
     classname(o) == C    ∧    forall o', i.   o' ⊢ classarg(o, i)   <=>   o' ⊢ Ai
 
+
+// o is something that we apply to a type, and get an object of another type
+o ⊢ ∀X. t   iff
+    forall T.
+        o[T] ⊢ t[T/X]
+    // relates a relation R on X to a relation R'
+    // (R, R')
+        
+
 o ⊢ A[X...] where B   iff
     ∃T... . concrete(T)   ∧
             o ⊢ A[T.../X...]   ∧
             ∃o'.   o' ⊢ B[T.../X...]
-
 
 // what is a concrete type?
 
@@ -130,6 +139,22 @@ o ⊢ α[t...]   iff
 type C[T] where T < B = {...}
 ```
 
+```cmath
+f : * -> *
+T : *
+
+f : Πx:*. T[x]
+
+
+[[Int]] = some relation on integers
+[[Int -> Int]] = relation between relations of integers
+[[∀X. T]] = given a relation, produce another relation [[(T[A/X])]], i.e. a 
+[[∀X. X]] = "identity relation", i.e. relate every relation to itself
+
+{ (R, R) | R ∈ Relations } ∈ Relations // is this well defined? this itself is a relation, so we have a 
+// given a relation [[ A ]], produce relation [[ (T[A/X]) ]] by
+```
+
 ```
 OR(R) =  { o ⊢ A | B   s.t.   o ⊢ A ∈ R   ∨   o ⊢ B ∈ R }
 AND(R) = { o ⊢ A & B   s.t.   o ⊢ A ∈ R   ∧   o ⊢ B ∈ R }
@@ -137,7 +162,6 @@ IFC(R) = { o ⊢ { f : A... -> B }   s.t.   mtype(o, f) = A'... -> B'   ∧
                                           ∀i, o'.   o' ⊢ Ai  ∈ R   =>   o' ⊢ A'i ∈ R   ∧
                                           ∀o'.      o' ⊢ B'i ∈ R   =>   o' ⊢ Bi  ∈ R     }
 SUB(R) = { o ⊢ A <: B   s.t.   ∀o'.   o' ⊢ A ∈ R   =>   o' ⊢ B ∈ R }
- 
 ```
 
 
@@ -171,7 +195,7 @@ class LList[T] {
 ```
 
 
-```
+```cmath
 // is this needed?
 ---- [syntactic]
 Γ, A ⊢ Δ, A
@@ -215,22 +239,31 @@ class LList[T] {
 Γ, c[t1, ...] ⊢ Δ, c[t1', ...]
 
 
-Γ* , A ⊢ Δ*, B
+sub_assumptions(Γ), A ⊢ B
 ----
+Γ ⊢ Δ, A <: B
+
+
+// if we have the syntax ∀X. t
+// is this needed
+Γ, Y <: X, A ⊢ Δ, B
+----
+Γ, ∀X. A ⊢ Δ, ∀Y. B
+
+
+
+// letting A <: B =def= box(A => B)
 Γ* ⊢ Δ*, A => B
 ----
 Γ ⊢ Δ, box(A => B)
 
 
 
-
-
-box(A => B)
-
-sub_assumptions(Γ), A ⊢ B
+Γ* , A ⊢ Δ*, B
 ----
-Γ ⊢ Δ, A <: B
-
+Γ* ⊢ Δ*, A => B
+----
+Γ ⊢ Δ, box(A => B)
 ```
 
 ```cmath
