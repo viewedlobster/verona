@@ -182,7 +182,9 @@ Self = D', D' <: Forget, D' -> D' ⊢ D' -> Forget'
 // as path back is through a record-focus rule. Look up cyclic proof theory.
 // James Brotherstone
 
-// other solution would be to have named interfaces in types, which is closer to what the implementation uses
+// other solution would be to have named traits in types, which is closer to
+// what the implementation uses.
+// for now, tag a trait with the type alias under which it is defined
 D' ⊢ Forget'
 ---- [alias-right](Forget')
 D' ⊢ Forget'{ forget : Self -> Forget' }
@@ -195,6 +197,122 @@ Self = D', D' <: Forget', D' -> D' ⊢ D' -> Forget'
 ---- [function]
 (1) Self = D', D' <: Forget', D' ⊢ D' // follows immediately
 (2) Self = D', D' <: Forget', D' ⊢ Forget' // need recursive subtyping assumption here
+
+// solution(?) 1:
+type Alias1 = { f : A -> Alias1 } & { g : B -> Alias1 }
+// equiv to
+// type Alias1 = Alias1{ f : A -> Alias1 } & Alias1{ g : B -> Alias1 }
+
+
+// solution(?) 2:
+type Alias2 = { f : A -> Alias2 } & { g : B -> Alias2 }
+// equiv to
+type Alias2 = Alias2_1{ f : A -> Alias2 } & Alias2_2{ g : B -> Alias2 }
+
+
+class E {
+    f : A -> E
+    g : B -> E
+}
+
+// TODO an example where we have replace Self = C with Self = D, i.e. a case
+// where we have some recursive case where we need to verify D <: T1 in order to
+// verify C <: T2
+
+//type Alias1 = A1' & A1''
+//
+//
+//alias_expand(Alias1, A1' & A1'') = 
+//Alias1#A1' & Alias1#A2'
+//A1'#{...} & A2'#{...}
+//Alias1#{...} & Alias1#{...}
+
+// Subtyping with solution 1:
+E ⊢ Alias1
+---- [alias-right](Alias1)
+E ⊢ Alias1{ f : A -> Alias1 } & Alias1{ g : B -> Alias1 }
+---- [cls-left](E, Self = E)
+Self = E, E{ f : A -> E } & E{ g : B -> E } ⊢ Alias1{ f : A -> Alias1 } & Alias1{ g : B -> Alias1 }
+---- [conj-left](E{ f : A -> E } & E{ g : B -> E })
+Self = E, E{ f : A -> E }, E{ g : B -> E } ⊢ Alias1{ f : A -> Alias1 } & Alias1{ g : B -> Alias1 }
+---- [conj-right]
+(1) Self = E, E{ f : A -> E }, E{ g : B -> E } ⊢ Alias1{ f : A -> Alias1 }
+(2) Self = E, E{ f : A -> E }, E{ g : B -> E } ⊢ Alias1{ g : B -> Alias1 } // similar to (1)
+
+
+(1)
+---- [record-focus](f, E <: Alias1)
+E <: Alias1, Self = E, A -> E ⊢ A -> Alias1
+---- [function]
+(1.1) E <: Alias1, Self = E ⊢ A <: A
+(1.2) E <: Alias1, Self = E ⊢ E <: Alias1
+
+
+(1.1)
+---- [modal](A <: A)
+E <: Alias1, Self = E ⊢ A => A
+---- [impl-left](A => A)
+E <: Alias1, Self = E, A ⊢ A
+---- [syntactic](A)
+
+(1.2)
+---- [syntactic](E <: Alias1)
+
+
+// subtyping with solution 2:
+E ⊢ Alias1
+---- [alias-right](Alias1)
+E ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ f : B -> Alias1 }
+---- [cls-left](E)
+Self = E, E_1{ f : A -> E } & E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ g : B -> Alias1 }
+---- [conj-left]
+Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ g : B -> Alias1 }
+---- [conj-right]
+(1) Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 }
+(2) Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_2{ g : B -> Alias1 }
+
+(1)
+---- [record-focus](E_1, Alias1_1, f)
+E_1 <: Alias1_1, Self = E, A -> E ⊢ A -> Alias1
+---- [method]
+(1.1) E_1 <: Alias1_1, Self = E ⊢ A <: A // trivial
+(1.2) E_1 <: Alias1_1, Self = E ⊢ E <: Alias1
+
+(1.2)
+----...
+E_1 <: Alias1_1, Self = E, E ⊢ Alias1
+---- [alias-right]
+E_1 <: Alias1_1, Self = E, E ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ g : B -> Alias1 }
+---- [cls-left]
+E_1 <: Alias1_1, Self = E, Self = E, E_1{ f : A -> E } & E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ g : B -> Alias1 }
+---- [conj-left]
+E_1 <: Alias1_1, Self = E, Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ g : B -> Alias1 }
+---- [conj-right]
+(1.2.1) E_1 <: Alias1_1, Self = E, Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 }
+(1.2.2) E_1 <: Alias1_1, Self = E, Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_2{ g : B -> Alias1 }
+
+
+(1.2.1)
+---- [discharge-sub](E_1{...}, E_1 <: Alias1_1, Alias_1{...}) // nrule to discharge Alias1_1{ f : A -> Alias1 } using E_1 <: Alias1_1 and E_1{ f : A -> E }
+
+(1.2.2) 
+---- [record-focus](E_2, Alias1_2, g)
+E_1 <: Alias1_1, E_2 <: Alias1_2, Self = E, Self = E, B -> E ⊢ B -> Alias1
+---- [method]
+...
+----
+(1.2.2.1) E_1 <: Alias1_1, E_2 <: Alias1_2, Self = E, Self = E, B ⊢ B // trivial
+(1.2.2.2) E_1 <: Alias1_1, E_2 <: Alias1_2, Self = E, Self = E, E ⊢ Alias1
+
+(1.2.2.2)
+---- [alias-right](Alias1) then [cls-left](E)
+E_1 <: Alias1_1, E_2 <: Alias1_2, Self = E, Self = E, Self = E, E_1{ f : A -> E } & E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 } & Alias1_2{ g : B -> Alias1 }
+---- [conj-left] then [conj-right]
+(1.2.2.2.1) E_1 <: Alias1_1, E_2 <: Alias1_2, Self = E, Self = E, Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_1{ f : A -> Alias1 } // by discharge-sub
+(1.2.2.2.2) E_1 <: Alias1_1, E_2 <: Alias1_2, Self = E, Self = E, Self = E, E_1{ f : A -> E }, E_2{ g : B -> E } ⊢ Alias1_2{ g : B -> Alias1 } // by discharge-sub
+// this is fucking long...
+
+
 
 // TODO can we construct System F similie but with self types?
 
