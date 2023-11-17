@@ -1,6 +1,5 @@
 # System F-like stuff
 
-
 ```cmath
 
 t ::= t | t
@@ -13,15 +12,81 @@ t ::= t | t
     | Top
     | Bot
 
-mtype ::= ∀X. mtype
-        | t & mtype_base
+mt ::= ∀X. mt
+     | t & mt_base
+     | mt_base
 
-mtype_base ::= (t...) -> t
+mt_base ::= t -> mt
+          | t
 ```
 
 
 # Even more System F-like
 
+## TODOs
+
+* Example: Write down contravariant example here (see pic from elias)
+
+```verona
+type T
+type S
+type A = A1{ f : A -> T }
+type B = B1{ f : B -> T } & B2{ g : B -> S }
+
+
+B ⊢ A
+----
+...
+----
+B1{ f : B -> T } & B2{ g : B -> S } ⊢ A1{ f : A -> T }
+---- [conj-left]
+B1{ f : B -> T }, B2 { g : B -> S } ⊢ A1{ f : A -> T }
+---- [focus](f)
+B1 <: A1, B -> T ⊢ A -> T
+---- [function]
+(1) B1 <: A1, A ⊢ B
+(2) B1 <: A1, T ⊢ T // trivial
+
+
+(1)
+----
+...
+----
+B1 <: A1, A1{ f : A -> T } ⊢ B1{ f : B -> T } & B2{ g : B -> S } 
+---- [conj-right]
+(1.1) B1 <: A1, A1{ f : A -> T } ⊢ B1{ f : B -> T }
+(1.2) B1 <: A1, A1{ f : A -> T } ⊢ B2{ g : B -> S }  // impossible
+
+
+(1.1)
+---- [focus]
+B1 <: A1, A1 <: B1, A -> T ⊢ B -> T
+---- [function]
+(1.1.1) B1 <: A1, A1 <: B1, B ⊢ A
+(1.1.2) B1 <: A1, A1 <: B1, T ⊢ T // trivial
+
+(1.1.1)
+---- [alias-right] then [alias-left] then [conj-left]
+B1 <: A1, A1 <: B1, B1{ f : B -> T }, B2 { g : B -> S } ⊢ A1{ f : A -> T }
+---- [discharge-sub](B1 <: A1, B1, A1)
+
+
+// neither A <: B or B <: A
+// A </: B: B contains another method
+
+// B </: A: if we assume B <: A, then we should be able to use B in place of A,
+// but we cannot unless A <: B as well (since B has itself in contravariant
+// position, i.e. we should be able to feed an A to B.f since we can feed an A
+// to A.f
+
+```
+* Example: Contravariance with multiple methods
+* Example: Mutual recursion
+* Example: Multiple Self = ...
+* Example: Iso-recursive failure, can our system do more?
+
+
+## syntax
 ```cmath
 
 t ::= t | t
@@ -34,36 +99,60 @@ t ::= t | t
     | t -> t
     | Top
     | Bot
+
+// TODO verona language does not allow values of function type, instead functions are represented by traits
+// - what do these traits look like?
+
+// TODO we somehow want to restrict top level types to not have function form, i.e. we cannot construct values that are 
 ```
 
 
+
+## denotation of types
 ```cmath
-o, slf ⊢ t1 | t2 iff
-    o ⊢ t1   ∨   o ⊢ t2
+o, i ⊧ t1 | t2 iff
+    o, i ⊧ t1   ∨   o, i ⊧ t2
 
 
-o, slf ⊢ t1 & t2 iff
-    o ⊢ t1   ∧   o ⊢ t2
+o, i ⊧ t1 & t2 iff
+    o, i ⊧ t1   ∧   o, i ⊧ t2
 
 
-o, slf ⊢ ∀X. t iff
-    forall t' o'. o' ⊢ o [t']   implies   o' ⊢ t[t'/X]
+o, i ⊧ ∀X. t iff
+    forall d.   o, i[X ↦ d] ⊧ t
 
 
-o, slf ⊢ C[t...] iff
+
+o, i ⊧ C[t...] iff
+    class_name(o) = C   ∧
+    forall o'.   o', i ⊧ class_arg(o, i)
+
+
+o, i ⊧ C[t...] iff
     class_name(o) == C   ∧
-    forall i o'.   o' ⊢ class_arg(o, i)   iff   o' ⊢ ti
+    forall o' j.   o', i ⊧ class_arg(o, j)   iff   o', i ⊧ tj
 // class_arg(o, i) = ith argument to o class
 
-o, slf ⊢ { f : t } iff
-    mtype(o, f) = t'   ∧
-    forall o'.   o', o ⊢ t'   implies   o', o ⊢ t  // set slf = o
-    // Self type?
+
+o, i ⊧ Self iff
+    o ∈ i[Self]
+
+o, i ⊧ X iff
+    o ∈ i[X]
 
 
-o, slf ⊢ Self iff slf =sub= o
+o, i ⊧ α{ f : mt } iff
+    m(o, f) = m   ∧   m, i[Self ↦ {o}] ⊧ mt
+
+
+//o, i ⊧ { f : t } iff
+//    mtype(o, f) = t'   ∧
+//    forall o'.   o', o ⊧ t'   implies   o', o ⊧ t  // set i = o
+//    // Self type?
+
 ```
 
+## examples and theory crafting
 
 ```verona
 
@@ -258,6 +347,7 @@ E <: Alias1, Self = E, A ⊢ A
 (1.2)
 ---- [syntactic](E <: Alias1)
 
+// TODO mutually recursive types?
 
 // subtyping with solution 2:
 E ⊢ Alias1
