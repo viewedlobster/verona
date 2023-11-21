@@ -145,4 +145,14 @@ Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
 ---- [sub-assume]
 Γ ⊢ A <: B
 Γ, A <: B ⊢ Δ
+
+
+---- [top]
+Γ ⊢ Δ, Top
+
+
+---- [bottom]
+Γ, Bot ⊢ Δ
+
+
 ```
