@@ -29,6 +29,40 @@ mt_base ::= t -> mt
 
 ```verona
 type T
+type A = A1{ f : A -> T }
+type B = B1{ f : B -> T }
+
+B ⊢ A
+---- [alias-left] then [alias-right]
+B1{ f : B -> T } ⊢ A1{ f : A -> T }
+---- [conj-left]
+B1{ f : B -> T } ⊢ A1{ f : A -> T }
+---- [focus](f)
+B1 <: A1, B -> T ⊢ A -> T
+---- [function]
+(1) B1 <: A1, A ⊢ B
+(2) B1 <: A1, T ⊢ T // syntactic equality
+
+
+(1)
+---- [alias-left] then [alias-right]
+B1 <: A1, A1{ f : A -> T } ⊢ B1{ f : B -> T } 
+---- [focus](f)
+B1 <: A1, A1 <: B1, A -> T ⊢ B -> T
+---- [function]
+(1.1) B1 <: A1, A1 <: B1, B ⊢ A
+(1.2) B1 <: A1, A1 <: B1, T ⊢ T // syntactic equality
+
+
+(1.1)
+---- [alias-left] then [alias-right]
+B1 <: A1, A1 <: B1, B1{ f : B -> T } ⊢ A1{ f : A -> T }
+---- [discharge-sub](B1, B1 <: A1, A1)
+```
+
+* Example: Contravariance with multiple methods
+```verona
+type T
 type S
 type A = A1{ f : A -> T }
 type B = B1{ f : B -> T } & B2{ g : B -> S }
@@ -78,12 +112,225 @@ B1 <: A1, A1 <: B1, B1{ f : B -> T }, B2 { g : B -> S } ⊢ A1{ f : A -> T }
 // but we cannot unless A <: B as well (since B has itself in contravariant
 // position, i.e. we should be able to feed an A to B.f since we can feed an A
 // to A.f
-
 ```
-* Example: Contravariance with multiple methods
+
+```verona
+type T
+type S
+type A = A1{ f : A -> T } & A2{ g : A -> S }
+type B = B1{ f : B -> T } & B2{ g : B -> S }
+
+
+A ⊢ B
+---- [alias-right] then [alias-left]
+A1{ f : A -> T } & A2{ g : A -> S } ⊢ B1{ f : B -> T } & B2{ g : B -> S }
+---- [conj-left] then [conj-right]
+(1) A1{ f : A -> T }, A2{ g : A -> S } ⊢ B1{ f : B -> T }
+(2) A1{ f : A -> T }, A2{ g : A -> S } ⊢ B2{ g : B -> S }
+
+(1)
+---- [focus](f)
+A1 <: B1, A -> T ⊢ B -> T // what if we have trait duplicates? what should we filter out during focus?
+---- [function]
+(1.1) A1 <: B1, B ⊢ A
+(1.2) A1 <: B1, T ⊢ T // done
+
+
+(1.1)
+---- [alias-right] then [alias-left]
+A1 <: B1, B1{ f : B -> T } & B2{ g : B -> S } ⊢ A1{ f : A -> T } & A2{ g : A -> S }
+---- [conj-left] then [conj-right]
+(1.1.1) A1 <: B1, B1{ f : B -> T }, B2{ g : B -> S } ⊢ A1{ f : A -> T }
+(1.1.2) A1 <: B1, B1{ f : B -> T }, B2{ g : B -> S } ⊢ A2{ g : A -> S }
+
+
+(1.1.1)
+---- [focus](f)
+A1 <: B1, B1 <: A1, B -> T ⊢ A -> T
+---- [function]
+(1.1.1.1) A1 <: B1, B1 <: A1, A ⊢ B
+(1.1.1.2) A1 <: B1, B1 <: A1, T ⊢ T // done
+
+(1.1.1.1)
+---- [alias-right] then [alias-left] then [conj-left]
+A1 <: B1, B1 <: A1, A1{ f : A -> T }, A2{ g : A -> S } ⊢ B1{ f : B -> T } & B2{ g : B -> S }
+---- [conj-right]
+(1.1.1.1.1) A1 <: B1, B1 <: A1, A1{ f : A -> T }, A2{ g : A -> S } ⊢ B1{ f : B -> T }
+(1.1.1.1.2) A1 <: B1, B1 <: A1, A1{ f : A -> T }, A2{ g : A -> S } ⊢ B2{ g : B -> S }
+
+
+(1.1.1.1.1)
+---- [discharge-sub](A1, A1 <: B1, B1) // done
+
+(1.1.1.1.2) 
+---- [focus](g)
+A1 <: B1, B1 <: A1, A2 <: B2, A -> S ⊢ B -> S
+---- [function]
+(1.1.1.1.2.1) A1 <: B1, B1 <: A1, A2 <: B2, B ⊢ A
+(1.1.1.1.2.2) A1 <: B1, B1 <: A1, A2 <: B2, S ⊢ S // done
+
+(1.1.1.1.2.1)
+---- [alias-left] then [alias-right] then [conj-left] then [conj-right]
+(1.1.1.1.2.1.1) A1 <: B1, B1 <: A1, A2 <: B2, B1{ f : B -> T }, B2{ g : B -> S } ⊢ A1{ f : A -> T }
+(1.1.1.1.2.1.2) A1 <: B1, B1 <: A1, A2 <: B2, B1{ f : B -> T }, B2{ g : B -> S } ⊢ A2{ g : A -> S }
+
+(1.1.1.1.2.1.1)
+---- [discharge-sub](B1, B1 <: A1, A1) // done
+
+(1.1.1.1.2.1.2)
+---- [focus](g)
+A1 <: B1, B1 <: A1, A2 <: B2, B2 <: A2, B -> S ⊢ A -> S
+---- [function]
+(1.1.1.1.2.1.2.1) A1 <: B1, B1 <: A1, A2 <: B2, B2 <: A2, A ⊢ B
+(1.1.1.1.2.1.2.2) A1 <: B1, B1 <: A1, A2 <: B2, B2 <: A2, S ⊢ S // done
+
+
+(1.1.1.1.2.1.2.1)
+---- [alias-left] then [alias-right] then [conj-left] then [conj-right]
+(1.1.1.1.2.1.2.1.1) A1 <: B1, B1 <: A1, A2 <: B2, B2 <: A2, A1{ f : A -> T }, A2{ g : A -> S } ⊢ B1{ f : B -> T }
+(1.1.1.1.2.1.2.1.2) A1 <: B1, B1 <: A1, A2 <: B2, B2 <: A2, A1{ f : A -> T }, A2{ g : A -> S } ⊢ B2{ g : B -> S }
+
+
+(1.1.1.1.2.1.2.1.1)
+---- [discharge-sub](A1, A1 <: B1, B1) // done
+
+(1.1.1.1.2.1.2.1.2)
+---- [discharge-sub](A2, A2 <: B2, B2) // done
+
+// the rest is similar
+```
+* Theory: Can we add assumptions of proven things when we backtrack?
+
 * Example: Mutual recursion
+
+```verona
+type A = { f : B }
+type B = { f : A }
+
+A ⊢ B
+```
+
+```verona
+// writing
+type A = { f : S -> B }
+type B = { g : T -> A }
+
+type C = { f : S -> { g : T -> C } }
+
+type A = { f : B }
+type B = { g : A }
+
+type C = { f : { g : C } }
+
+type A = A1#{ f : B }
+type B = B1#{ g : A }
+
+type C = C1#{ f : C2#{ g : C } }
+
+A ⊢ C
+---- [alias-left] then [alias-right]
+A1#{ f : B } ⊢ C1#{ f : C2#{ g : C } }
+---- [focus](f)
+A1 <: C1, B ⊢ C2#{ g : C }
+---- [alias-left]
+A1 <: C1, B1#{ g : A } ⊢ C2#{ g : C }
+---- [focus](g)
+B1 <: C2, A1 <: C1, A ⊢ C
+---- [alias-left] then [alias-right]
+B1 <: C2, A1 <: C1, A1#{ f : B } ⊢ C1#{ f : C2#{ g : C } }
+---- [discharge-sub](A1, A1 <: C1, C2)
+
+// is this cyclic proofs?
+// we basically record steps taken with the help of assumptions A1 <: C1 etc.
+
+
+
+
+C ⊢ A
+---- [alias-left] then [alias-right]
+C1#{ f : C2#{ g : C } } ⊢ A1#{ f : B } 
+---- [focus](f)
+C1 <: A1, C2#{ g : C } ⊢ B
+---- [alias-right]
+C1 <: A1, C2#{ g : C } ⊢ B1#{ g : A }
+---- [focus](g)
+C1 <: A1, C2 <: B1, C ⊢ A
+---- // ... similar to above
+```
+
+* Example: Look at mutual recursion paper for examples
 * Example: Multiple Self = ...
 * Example: Iso-recursive failure, can our system do more?
+* Example: Polymorphic type
+
+```verona
+
+type A = ∀X. A1[X]{
+    f : X
+}
+
+
+class C[Y] {
+    f : Y
+}
+=~= // equal ish
+type C = ∀Y. class Cl[Y] {
+    f : Y
+}
+
+
+o ⊧ T
+
+o 
+
+
+// can we model classes with
+type C = ∀X. {
+    ClsC : Bot
+} & {
+    f : X
+}
+
+type A = {
+    f : Self -> T
+}
+
+
+C ⊢ A
+---- [alias-right] then [alias-left]
+∀Y. Cl[Y] ⊢ ∀X. A1[X]{ f : X }
+---- [instansiate](Z) // must keep instansiations separate from other stuff, do we filter out everything in context that cannot be instansiated? kernel Fsub or full Fsub?
+Cl[Z] ⊢ A1[Z]{ f : Z }
+---- [cls-left]
+Self = Cl[Z], Cl1[Z]{ f : Z } ⊢ A1[Z]{ f : Z }
+---- [focus](f)
+Self = Cl[Z], Z ⊢ Z
+---- [discharge-syntactic](Z)
+
+
+Cl1[T] <: A1[T]
+
+Cl1[Z] <: A1[Z]
+
+Cl1 <: A1
+
+type A = ∀X. A1[X]{
+    f : Self -> A[X]
+}
+
+class C[Y] {
+    f : C[Y] -> C[Y]
+}
+=~=
+type C = ∀Y. class Cl {
+    f : C[Y]
+}
+
+C ⊢ A
+---- [alias-right] then [alias-left]
+
+// TODO how does this compare to F-bounded polymorphism? In our system we have where clauses instead
+```
 
 
 ## syntax
@@ -103,7 +350,7 @@ t ::= t | t
 // TODO verona language does not allow values of function type, instead functions are represented by traits
 // - what do these traits look like?
 
-// TODO we somehow want to restrict top level types to not have function form, i.e. we cannot construct values that are 
+// TODO we somehow want to restrict top level types to not have function form, i.e. we cannot construct values that are functions?
 ```
 
 
