@@ -1,4 +1,4 @@
-# Prototype subtyping
+# Subtyping rules
 
 
 ```cmath
@@ -30,6 +30,23 @@ A, B are types in the rules below
 // we want to be able to expand leftmost alias in a type application
 T ::= [[⋅]]
     | T [t]
+```
+
+
+We translate into types from code by the following transformation
+
+```verona
+
+
+class C[X...] {
+    // clsbody
+}
+=>
+type C = ∀X... . C[X...]
+
+// C[X...] can be translated into the corresponding trait type with class_lookup
+class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
+
 ```
 
 
