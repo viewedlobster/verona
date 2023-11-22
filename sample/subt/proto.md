@@ -6,7 +6,7 @@
 t ::= t | t
     | t & t
     | ∀X. t
-    | t[t]
+    | t [t]
     | c[t...]
     | τ{ f : t }
     | X
@@ -15,6 +15,7 @@ t ::= t | t
     | t -> t
     | Top
     | Bot
+    | t <: t
 
 
 τ ::= τid[t...]
@@ -36,11 +37,8 @@ T ::= [[⋅]]
 We translate into types from code by the following transformation
 
 ```verona
-
-
 class C[X...] {
     // clsbody
-}
 =>
 type C = ∀X... . C[X...]
 
@@ -52,116 +50,116 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 
 ```cmath
 
-σ(Γ) ⊢ σ'(Δ)
-----
 Γ ⊢ Δ
+----
+σ(Γ) ⊢ σ'(Δ)
 // σ, σ' are permutations of Γ, Δ
 
 
-Γ, t1 & t2 ⊢ Δ
----- [conj-left]
 Γ, t1, t2 ⊢ Δ
+---- [conj-left]
+Γ, t1 & t2 ⊢ Δ
 
 
-Γ ⊢ Δ, t1 & t2
----- [conj-right]
 Γ ⊢ Δ, t1
 Γ ⊢ Δ, t2
+---- [conj-right]
+Γ ⊢ Δ, t1 & t2
 
 
-Γ, t1 | t2 ⊢ Δ
----- [disj-left]
 Γ, t1 ⊢ Δ
 Γ, t2 ⊢ Δ
+---- [disj-left]
+Γ, t1 | t2 ⊢ Δ
 
 
-Γ ⊢ Δ, t1 | t2
----- [disj-right]
 Γ ⊢ Δ, t1, t2
+---- [disj-right]
+Γ ⊢ Δ, t1 | t2
 
 
-Γ, X = A, B ⊢ Δ
----- [subst-left]
 Γ, X = A, B[A/X] ⊢ Δ
+---- [subst-left]
+Γ, X = A, B ⊢ Δ
 
 
-Γ, X = A ⊢ Δ, B
----- [subst-right]
 Γ, X = A ⊢ Δ, B[A/X]
+---- [subst-right]
+Γ, X = A ⊢ Δ, B
 
 
-Γ, A ⊢ Δ, A
 ---- [discharge-syntactic]
+Γ, A ⊢ Δ, A
 
 
-Γ, A <: B, A ⊢ Δ
----- [assume-sub]
 Γ, A <: B, A, B ⊢ Δ
+---- [assume-sub]
+Γ, A <: B, A ⊢ Δ
 
 
-Γ, A -> B ⊢ Δ, A' -> B'
----- [arrow]
 Γ*, A' ⊢ Δ*, A
 Γ*, B  ⊢ Δ*, B'
+---- [arrow]
+Γ, A -> B ⊢ Δ, A' -> B'
 
 
 // T[[\alpha]] is of the form   α [t] ... [t]
 // where type application associate to the left
 // thus we expand leftmost alias in a type application
-Γ, T[[α]] ⊢ Δ
----- [alias-left]
 alias_lookup(α) = A
 Γ, T[[A]] ⊢ Δ
+---- [alias-left]
+Γ, T[[α]] ⊢ Δ
 
 
-Γ ⊢ Δ, T[[α]]
----- [alias-right]
 alias_lookup(α) = A
 Γ ⊢ Δ, T[[A]]
+---- [alias-right]
+Γ ⊢ Δ, T[[α]]
 
 
-Γ, c[t...] ⊢ Δ
----- [cls-left]
 class_lookup(c, t...) = A
 Γ, Self = c[t...], A ⊢ Δ
+---- [cls-left]
+Γ, c[t...] ⊢ Δ
 
 
-Γ, c[t...] ⊢ Δ, c[t'...]
----- [cls-right] // note the non-symmetry compared to alias rules
 ∀i ∈ [1, length(t...)]. Γ ⊢ Δ, tᵢ <: t'ᵢ
+---- [cls-right] // note the non-symmetry compared to alias rules
+Γ, c[t...] ⊢ Δ, c[t'...]
 
 
-Γ, τ{ f : A } ⊢ Δ, τ'{ f : B }
----- [focus]
 Γ, τ{ f : A } <: τ'{ f : B } ⊢ Δ, A <: B
+---- [focus]
+Γ, τ{ f : A } ⊢ Δ, τ'{ f : B }
 
 
-Γ, (∀X. A) [B] ⊢ Δ
----- [appl-left]
 Γ, A[B/X] ⊢ Δ
+---- [appl-left]
+Γ, (∀X. A) [B] ⊢ Δ
 
 
-Γ ⊢ Δ, (∀X. A) [B]
----- [appl-right]
 Γ ⊢ Δ, A[B/X]
+---- [appl-right]
+Γ ⊢ Δ, (∀X. A) [B]
 
 
 // this should correspond to the typing rule in Kernel F_{<:}
-Γ, ∀X. A ⊢ Δ, ∀Y. B
----- [poly]
 Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
 Γ, A[Z/X] ⊢ Δ, B[Z/Y]
+---- [poly]
+Γ, ∀X. A ⊢ Δ, ∀Y. B
 
 
-Γ ⊢ Δ, A <: B
----- [sub-right]
 Γ*, A ⊢ Δ*, B
+---- [sub-right]
+Γ ⊢ Δ, A <: B
 
 
-Γ ⊢ Δ
----- [sub-assume]
 Γ ⊢ A <: B
 Γ, A <: B ⊢ Δ
+---- [sub-assume]
+Γ ⊢ Δ
 
 
 ---- [top]
@@ -170,6 +168,4 @@ Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
 
 ---- [bottom]
 Γ, Bot ⊢ Δ
-
-
 ```
