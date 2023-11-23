@@ -49,8 +49,26 @@ We translate into types from code by the following transformation
 ```verona
 class C[X...] {
     // clsbody
+}
 =>
-type C = ∀X... . C[X...]
+type C = ∀X... . Cl[X...]
+
+type A = ∀X... . { ... }
+
+
+// TODO: write down rule where we do class lookup and polymorphism in one step
+Γ, Self = Cl[t...], τCl{...} ⊢ Δ, { ... }[t'.../X...]
+----
+Γ, Cl[t...] ⊢ Δ, { ... }[t'.../X...]
+----
+Γ, ∀X... . Cl[X...] [t...] ⊢ Δ, ∀X... . { ... } [t'...]
+----
+Γ, C [t...] ⊢ Δ, A [t'...]
+
+
+Γ, Self = Cl[t...], τCl{...} ⊢ Δ
+----
+Γ, C [t...] ⊢ Δ
 
 // C[X...] can be translated into the corresponding trait type with class_lookup
 class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
@@ -101,7 +119,6 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 ---- [discharge-syntactic]
 Γ, A ⊢ Δ, A
 
-⊧
 
 Γ ⊢ Δ, A
 Γ, B ⊢ Δ
@@ -113,7 +130,7 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 Γ*, B  ⊢ Δ*, B'
 ---- [arrow]
 Γ, A -> B ⊢ Δ, A' -> B'
-
+// TODO: see the Self typing concern below
 
 // T[[\alpha]] is of the form   α [t] ... [t]
 // where type application associate to the left
@@ -123,6 +140,8 @@ alias_lookup(α) = A
 ---- [alias-left]
 Γ, T[[α]] ⊢ Δ
 
+// type Alias1 = ∀X. {...}
+// Alias1 [t...] => ∀X. {...}
 
 alias_lookup(α) = A
 Γ ⊢ Δ, T[[A]]
@@ -185,7 +204,17 @@ Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
 ```
 
 
+```verona
+type Foo = { f : Self -> { g : Self -> Self } }
+// what does the inner Self refer to
+// every trait has its own Self binder?
+```
+* TODO: construct example where subtyping needs Self binders
+
+
+
 cut is a use of a lemma 
+
 ```
 Γ ⊢ A
 Γ, A ⊢ Δ
