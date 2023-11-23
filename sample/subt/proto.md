@@ -1,3 +1,12 @@
+# Questions
+
+* How do we interpret method specialization with method-level where clauses from
+  a formalization perspective?
+* Implicit vs explicit recursive types
+    - We use aliases for recursion, which is kind of implicit
+    - Try to relate this to formal recursive types `μX. T`
+* Where clauses:
+    - How does this relate to conjunction types?
 # Subtyping rules
 
 
@@ -91,10 +100,12 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 ---- [discharge-syntactic]
 Γ, A ⊢ Δ, A
 
+⊧
 
-Γ, A <: B, A, B ⊢ Δ
----- [assume-sub]
-Γ, A <: B, A ⊢ Δ
+Γ ⊢ Δ, A
+Γ, B ⊢ Δ
+---- [assume-sub] (if Γ ⊢ A)
+Γ, A <: B ⊢ Δ
 
 
 Γ*, A' ⊢ Δ*, A
@@ -168,4 +179,16 @@ Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
 
 ---- [bottom]
 Γ, Bot ⊢ Δ
+
+
+```
+
+
+cut is a use of a lemma 
+```
+Γ ⊢ A
+Γ, A ⊢ Δ
+---
+Γ ⊢ Δ
+
 ```
