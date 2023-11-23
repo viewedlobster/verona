@@ -7,6 +7,7 @@
     - Try to relate this to formal recursive types `μX. T`
 * Where clauses:
     - How does this relate to conjunction types?
+
 # Subtyping rules
 
 

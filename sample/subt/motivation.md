@@ -109,7 +109,8 @@ type A[T] = {
 // here we add the assumption that T is of Imm type in the method declaration
 ```
 
-### Ad-hoc polymorphism:
+### Ad-hoc polymorphism
+
 #### Inheritance: Why don't we have it?
 "Reuse is not subtyping", i.e. extending something does not imply subtyping.
 
@@ -126,7 +127,6 @@ class D : C {
     g(...): ... { ... f(...) ... }
 }
 ```
-Note that this is imaginary syntax...
 
 * TODO: check how you would actually write a thing like this in verona
 * TODO: more concrete/realistic example
@@ -150,7 +150,8 @@ type ToString = {
 let l : List[ToString]
 ```
 
-* Question: Could we have a default implementation only in the case where Self <: ToString?
+* Question: Could we have a default implementation only in the case where Self
+  <: ToString? (As in example below)
 ```verona
 type ToString = {
     toString(s: Self) : String
@@ -178,8 +179,8 @@ f :: Printable a => a -> IO ()
 
 f x = ...
 -- would be transformed into
-
 f (dict :: Printable a) x = ...
+-- where dict is a dictionary of type class functions
 ```
 
 #### Self types
@@ -266,14 +267,69 @@ Has stuff like this?
 type Constraint[T] = T <: ROList[T]
 ```
 
-* TODO: add subject/observer
+```verona
+type SubObs[S,O] = (S < Subject[O]) & (O < Observer[S])
+
+type Subject[O] = 
+{
+    var obs: O
+}
+
+type Observer[S] = 
+{
+    var sub: S
+}
+
+class Sub1 
+{
+    var obs: Obs1;
+}
+
+class Obs1
+{
+    var sub: Sub1;
+}
+
+class Obs2
+{
+    var sub: Sub1;
+}
+
+type test1 = SubObs[Sub1, Obs1]
+
+type test2 = SubObs[Sub1, Obs2]
+
+class Foo[S,O] where SubObs[S,O]
+{
+   // Code that does some form of SubObs pattern.
+   ...
+}
+```
+
+* TODO: add more examples that defines constraints
+    - Look at Graph algorithms, vertices/edges need to fulfill certain properties
+    - `NodeFwdBwd <: NodeFwd`
 
 
 ### How does polymorphism look in our system?
+
+* C++ typechecks after instantiation
+    - "insanely powerful", 
+    - keywords: concepts, 
+    - concepts: implementation of polymorphic library might use more assumptions than
+      stated in the corresponding concepts
+
+In verona, we want to do type checking before instantiation, so subtyping rules
+needs to account for polymorphic types. This is where `where` comes in.
+
+subtyping on traits
+
 ### Fields vs methods
 
+We implement fields 
 
-* Dynamic vs static dispatch
+
+### Dynamic vs static dispatch
     - Universal call syntax
         + Syntax allows infixing
           ```verona
