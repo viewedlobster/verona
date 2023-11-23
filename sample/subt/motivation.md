@@ -326,8 +326,9 @@ subtyping on traits
 
 ### Fields vs methods
 
-We implement fields 
+We implement fields using getters and setters and then typechecks methods.
 
+It should be fairly easy to allow var/val (atm we only have var).
 
 ### Dynamic vs static dispatch
     - Universal call syntax
