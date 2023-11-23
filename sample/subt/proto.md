@@ -11,39 +11,39 @@
 # Subtyping rules
 
 
+* TODO: change
 ```cmath
 
 t ::= t | t
     | t & t
-    | ∀X. t
-    | t [t]
     | c[t...]
-    | τ{ f : t }
+    | α[t...]
+    | τ{ f : mt }
     | X
-    | α
     | Self
-    | t -> t
     | Top
     | Bot
     | t <: t
 
+mt ::= [X...] mt_base where t
 
-τ ::= τid[t...]
+mt_base ::= t -> mt_base
+          | t
 
-
-τid ∈ TraitIdentifiers
-
+τ ∈ TraitIdentifiers
 α ∈ AliasNames
 
 A, B are types in the rules below
-
-
-// we want to be able to expand leftmost alias in a type application
-T ::= [[⋅]]
-    | T [t]
 ```
 
+* TODO: add rule(s) for method signatures
+```
+[X...] mt where t <: [Y...] mt' where t'
 
+Z... 
+
+t'[Z.../Y...] <: t[Z.../X...]
+```
 We translate into types from code by the following transformation
 
 ```verona
@@ -122,7 +122,7 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 
 Γ ⊢ Δ, A
 Γ, B ⊢ Δ
----- [assume-sub] (if Γ ⊢ A)
+---- [assume-sub] // (if Γ ⊢ A) should be a prerequisite in the implementation
 Γ, A <: B ⊢ Δ
 
 
@@ -132,47 +132,56 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 Γ, A -> B ⊢ Δ, A' -> B'
 // TODO: see the Self typing concern below
 
-// T[[\alpha]] is of the form   α [t] ... [t]
+alias_lookup(α) = A[X...]
+Γ, A[t.../X...] ⊢ Δ
+---- [alias-left]
+Γ, α[t...] ⊢ Δ
+
+alias_lookup(α) = A[X...]
+Γ ⊢ Δ, A[t.../X...]
+---- [alias-right]
+Γ ⊢ Δ, α[t...]
+
+// T[[α]] is of the form   α [t] ... [t]
 // where type application associate to the left
 // thus we expand leftmost alias in a type application
-alias_lookup(α) = A
-Γ, T[[A]] ⊢ Δ
----- [alias-left]
-Γ, T[[α]] ⊢ Δ
+// alias_lookup(α) = A
+// Γ ⊢ Δ, T[[A]]
+// ---- [alias-right]
+// Γ ⊢ Δ, T[[α]]
+// 
+// alias_lookup(α) = A
+// Γ, T[[A]] ⊢ Δ
+// ---- [alias-left]
+// Γ, T[[α]] ⊢ Δ
 
-// type Alias1 = ∀X. {...}
-// Alias1 [t...] => ∀X. {...}
-
-alias_lookup(α) = A
-Γ ⊢ Δ, T[[A]]
----- [alias-right]
-Γ ⊢ Δ, T[[α]]
-
-
-class_lookup(c, t...) = A
-Γ, Self = c[t...], A ⊢ Δ
+class_lookup(c) = A[X...]
+Γ, Self = c[t...], A[t.../X...] ⊢ Δ
 ---- [cls-left]
 Γ, c[t...] ⊢ Δ
+// what is the ramifications of having one single Self
 
 
-∀i ∈ [1, length(t...)]. Γ ⊢ Δ, tᵢ <: t'ᵢ
+∀i ∈ [1, length(t...)]. Γ, c[t...] <: c[t'...] ⊢ (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
 ---- [cls-right] // note the non-symmetry compared to alias rules
 Γ, c[t...] ⊢ Δ, c[t'...]
 
 
-Γ, τ{ f : A } <: τ'{ f : B } ⊢ Δ, A <: B
+// TODO A and B should be method types, make sure to expand and check
+// co/contravariance
+Γ*, τ{ f : A } <: τ'{ f : B }, A ⊢ B
 ---- [focus]
 Γ, τ{ f : A } ⊢ Δ, τ'{ f : B }
 
 
-Γ, A[B/X] ⊢ Δ
----- [appl-left]
-Γ, (∀X. A) [B] ⊢ Δ
-
-
-Γ ⊢ Δ, A[B/X]
----- [appl-right]
-Γ ⊢ Δ, (∀X. A) [B]
+// Γ, A[B/X] ⊢ Δ
+// ---- [appl-left]
+// Γ, (∀X. A) [B] ⊢ Δ
+// 
+// 
+// Γ ⊢ Δ, A[B/X]
+// ---- [appl-right]
+// Γ ⊢ Δ, (∀X. A) [B]
 
 
 // this should correspond to the typing rule in Kernel F_{<:}
@@ -181,6 +190,17 @@ Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
 ---- [poly]
 Γ, ∀X. A ⊢ Δ, ∀Y. B
 
+
+Γ, A[X...] ⊢ Δ, B[Y...]
+
+
+
+
+type A[X...]
+
+type B[X...]
+
+A[Z...] <: B[Z...]
 
 Γ*, A ⊢ Δ*, B
 ---- [sub-right]
@@ -220,5 +240,150 @@ cut is a use of a lemma
 Γ, A ⊢ Δ
 ---
 Γ ⊢ Δ
+
+```
+
+
+# Self typing stuff
+
+```verona
+
+type A = {
+    type Self
+    type B = { g : Self -> A.Self }
+    f : Self -> { g : Self -> A.Self }
+}
+
+type A' = {
+    type Self
+    type B' = { g : Self -> A'.Self }
+    f : Self -> B'
+}
+
+
+
+```
+
+```verona
+// translation for Self types
+type T = {
+    f : Self -> S
+}
+=>
+type T = {
+    type Self // type declaration of Self
+    f : T.Self -> S
+}
+
+
+type A = {
+    f : Self -> { g : Self -> A.Self }
+}
+=>
+type A = {
+    type Self // type declaration of Self
+    type Anon1 = { g : A.Anon.Self -> A.Self } // type definition of A.Anon1
+    f : A.Self -> A.Anon1
+}
+
+
+
+type B[X] = {
+    f : Self -> { g : Self -> X }
+}
+=>
+type B[X] = {
+    type Self
+    type Anon1 = { g : B[X].Anon1.Self -> X }
+    f : B[X].Self -> Anon1
+}
+// is B[X].Anon1.Self enough?
+
+type B[X] = {
+    f : Self -> { g : Self -> B[X].Self -> X }
+}
+=>
+type B[X] = {
+    type Self
+    type Anon1[Y] = {
+        g : B[X].Anon1[Y].Self -> Y
+    }
+    f : B[X].Self -> Anon1[X]
+}
+// is B[X].Anon1.Self enough?
+
+
+
+type A = {
+    type Anon = {
+        h : A.Self -> Self
+        i : Self -> A.Self
+    }
+    f : Self -> T
+    g : S -> Self
+    j : Self -> Anon
+}
+=>
+type A[Self, AnonSelf] = {
+    type Anon[Self, ASelf] = {
+        h : ASelf -> Self
+        i : Self -> ASelf
+    }
+    f : Self -> T
+    g : S -> Self
+    j : Self -> Anon[AnonSelf, Self]
+}
+
+
+class C {
+    class D {
+        h : C -> D
+        i : D -> C
+    }
+    f : C -> T
+    g : S -> C
+    j : C -> D
+}
+
+C <: A[C, C::D]?
+
+
+C <: A
+
+```
+```verona
+// what does Self mean
+type Comparable = {
+    compare(s1 : Self, s2 : Self) : Direction
+}
+
+class RBTree[T] where (T <: Comparable) {
+    ...
+}
+
+type X = RBTree[A | B]
+```
+
+
+```verona
+type JSON = String | Number | Array[JSON]
+
+type JSON' = String | Number | Array[JSON']
+
+type Test = JSON <: JSON'
+
+JSON <: JSON'
+----
+String | Number | Array[JSON] ⊢ String | Number | Array[JSON']
+----
+String ⊢ String, Number, Array[JSON'] // done
+Number ⊢ String, Number, Array[JSON'] // done
+Array[JSON] ⊢ String, Number, Array[JSON']
+
+
+Array[JSON] ⊢ String, Number, Array[JSON']
+----
+JSON' <: JSON
+JSON <: JSON'
 
 ```

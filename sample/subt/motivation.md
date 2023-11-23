@@ -191,6 +191,20 @@ f (dict :: Printable a) x = ...
 type Equalable = { equals(self : Self, other : Self) : Bool }
 ```
 
+* Question: what do we want in terms of self typing?
+```verona
+// what does Self mean
+type Comparable = {
+    compare(s1 : Self, s2 : Self) : Direction
+}
+
+class RBTree[T] where (T <: Comparable) {
+    ...
+}
+
+type X = RBTree[A | B]
+```
+
 
 ### Why `where`?
 
