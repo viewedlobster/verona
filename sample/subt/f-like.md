@@ -11,12 +11,11 @@ t ::= t | t
     | α
     | Top
     | Bot
+    | t <: t
 
-mt ::= ∀X. mt
-     | t & mt_base
-     | mt_base
+mt ::= [X...] . mt_base where t
 
-mt_base ::= t -> mt
+mt_base ::= t -> mt_base
           | t
 ```
 
@@ -824,4 +823,28 @@ f :: A -> A
 f a = x where x = a
 
 f a = let X <: U in a
+```
+
+
+
+```verona
+type A[X] = {
+    type Self
+    type Anon1 = { g : A[X].Anon1.Self -> X }
+    f : A[X].Self -> Anon1
+}
+
+type B[Y] = {
+    type Self
+    type Anon1 = { g : B[Y].Anon1.Self -> Y }
+    f : B[Y].Self -> Anon1
+}
+
+
+
+A[X] <: B[Y]
+---- [alias-left] then [alias-right]
+{ f : A[X].Self -> Anon1
+
+
 ```

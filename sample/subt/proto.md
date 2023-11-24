@@ -8,10 +8,8 @@
 * Where clauses:
     - How does this relate to conjunction types?
 
-# Subtyping rules
+# Syntax of types
 
-
-* TODO: change
 ```cmath
 
 t ::= t | t
@@ -35,6 +33,63 @@ mt_base ::= t -> mt_base
 
 A, B are types in the rules below
 ```
+
+# Denotation
+```cmath
+C ::= c[t...] (instantiated class)
+
+
+t, i ⊧*ₙ t' iff ∀C. C, i ⊧ₙ t   =>   C, i ⊧ₙ t'
+
+
+C, i ⊧ₙ t1 | t2 iff
+    C, i ⊧ₙ t1   ∨   C, i ⊧ₙ t2
+
+
+C, i ⊧ₙ t1 & t2 iff
+    C, i ⊧ₙ t1   ∧   C, i ⊧ₙ t2
+
+
+c[t...], i ⊧₀ c[t'...]
+
+
+c[t...], i ⊧ₙ₊₁ c[t'...] iff
+    ∀j.   t'ⱼ, i ⊧*ₙ tⱼ   ∧   tⱼ, i ⊧*ₙ t'ⱼ
+
+
+C, i ⊧ₙ α[t...]   iff   C, i ⊧ₙ alias_lookup(α, t...)
+
+
+// up to some renaming of params X...
+C, i ⊧ₙ₊₁ τ{ f : [X...] t... -> t' where t'' } iff
+    method_type(C, f) = [X...] s... -> s' where s''   ∧
+    ∀Cs... . i' = i[X... ↦ Cs...]
+             t'', i' ⊧*ₙ s''   ∧
+             (Top, i' ⊧*ₙ t''   =>   ∀j.   tⱼ, i' ⊧*ₙ sⱼ   ∧
+                                     s', i' ⊧*ₙ t')
+
+// TODO there is currently two modes of binding: substitution (as in
+//      method_type(c[t...], f)) and the variable mapping i. We should check if
+//      this leads to problems and/or is unecessarily complicated.
+
+C, i ⊧ₙ X   iff   C ∈ i[X]
+
+
+// skipping Self for now
+
+
+C, i ⊧ₙ Top   iff   true
+
+
+C, i ⊧ₙ Bot   iff   false
+
+
+C, i ⊧ₙ₊₁ t <: t'   iff   t, i ⊧*ₙ t'
+```
+
+
+# Subtyping rules
+
 
 * TODO: add rule(s) for method signatures
 ```

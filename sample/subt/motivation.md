@@ -10,9 +10,15 @@
 
 Left as an exercise for the reader.
 
+Mention nominal classes. Function taking meaters or feet
+
 TODO: ellen should write something here.
 
 ### Disjunction types: Why?
+
+```verona
+type T = A | B
+```
 
 Gives us a way to take existing types/classes and easily describe groupings of
 these. The main point is that this can be done after the fact of defining these
@@ -60,6 +66,11 @@ class B { val: I32 }
 type T = A | B
 ```
 
+* TODO: check what polymorphic variants can do in ocaml
+
+#### Explicit nullability
+...
+
 ### Conjunction types: why?
 
 #### Structural type system
@@ -72,18 +83,26 @@ type B
 type C = A & B
 
 
-interface C implements A, B {...}
+// in java
+interface C extends A, B {...}
 
 f(x : A & B) = ...
 ```
 
 Kind of the answer to multiple inheritance in C++.
 ```verona
-// what would you write to inherit default implementations from Trait1 and
-// Trait2?
+// Question: what would you write to inherit default implementations from Trait1
+// and Trait2?
 class C : Trait1 & Trait2
 // TODO need to check in compiler
 ```
+
+##### For ln: Things to mention
+* Objective C: categories
+* Ruby: Open classes
+* C#: extension methods
+
+
 #### Integration with capabilities
 
 A type C with capability mut can be expressed as
@@ -104,7 +123,7 @@ A[mut & C]
 Adding assumptions about types in a convenient way
 ```verona
 type A[T] = {
-    f(T & Imm) : S & Imm
+    f(T & imm) : S & imm
 }
 // here we add the assumption that T is of Imm type in the method declaration
 ```
@@ -128,7 +147,12 @@ class D : C {
 }
 ```
 
+* Question: Should classes really be extendable? There is a case to be made for
+  classes to not be extendable: to be sure that you don't muck about in some
+  extending class code when you change a method in the extended class.
+
 * TODO: check how you would actually write a thing like this in verona
+* TODO: add description of what extension actually means
 * TODO: more concrete/realistic example
 
 #### Traits
@@ -165,12 +189,14 @@ type Printable = {
     }
 }
 
-let l : List[ToString]
 ```
 
+Question: are traits able to specify fields? (compare to abstract classes in java)
 
 Question: do we want default implementations if not specified by the class
 definition? E.g. type classes, or scala implicits.
+Can we declare trait implementation/default implementation somewhere which isn't
+the class definition?
 
 
 Sidenote on haskell type classes.
@@ -205,6 +231,19 @@ class RBTree[T] where (T <: Comparable) {
 type X = RBTree[A | B]
 ```
 
+```verona
+// what does Self mean
+type Comparable[T] = {
+    compare(s1 : T & Self, s2 : T) : Direction
+}
+
+class RBTree[T] where (T <: Comparable[T]) {
+    ...
+    print(self) : Unit where (T <: Printable) // can print tree if T is Printable
+}
+
+type X = RBTree[A | B]
+```
 
 ### Why `where`?
 
@@ -239,6 +278,10 @@ class Map[K, T] {
 ```
 In a system without method-level where clauses, we would need to bifurcate each
 class on whether the class should be able to handle iso values or not.
+
+Where clauses on methods are very intentional, and allows us to give better
+error messages.
+
 
 #### Type level where
 
@@ -344,13 +387,64 @@ We implement fields using getters and setters and then typechecks methods.
 
 It should be fairly easy to allow var/val (atm we only have var).
 
-### Dynamic vs static dispatch
-    - Universal call syntax
-        + Syntax allows infixing
-          ```verona
-          f op g
-          // If op is not in scope and f, g are expressions then this will be interpreted as
-          f.op(g)
-          ```
-          Not really related to type system, but needs documenting somewhere.
 
+# Discussion points
+
+
+## Self typing
+
+See: RBTree/Comparable example
+
+What do we want from Self types?
+
+## Code reuse
+
+### From traits
+
+Can something externally declare that a class satisfies a trait and thus give it
+default methods? E.g. type class instances.
+
+```verona
+class C // defined somewhere
+
+// without access to the definition of C
+
+// Question 1: can we "import" defaults?
+C extends Printable // ?
+
+// Question 2: Can we "import" defaults and define new methods?
+C extends Printable {
+    toString(s: C) : String {
+        ...
+    }
+}
+// kind of akin to mixins:
+// class D extends C with Printable { ... }
+// but we extend C instead of defining a new class D
+```
+
+### Fields in traits
+
+Question: are traits able to specify fields? (compare to abstract classes in java)
+
+### From classes
+
+Is a class allowed to inherit methods from another class.
+
+
+Pro: Allows unanticipated code reuse
+Con: Allows unanticipated code reuse
+
+
+Can we both have your cake and eat it?: inheritability could be opt in/out with
+keyword.
+
+## Dynamic vs static dispatch
+* Universal call syntax
+    - Syntax allows infixing
+      ```verona
+      f op g
+      // If op is not in scope and f, g are expressions then this will be interpreted as
+      f.op(g)
+      ```
+      Not really related to type system, but needs documenting somewhere.
