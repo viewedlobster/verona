@@ -1,0 +1,53 @@
+// graph: polymorphic types
+
+// List[T] <: Iterable[T]
+
+type GNode[V, N, E] = {
+    edges(self: Self) : Iterable[Edge[N]]
+    val(self: Self): V
+}
+
+
+type GEdge[N, E] = {
+    src(self: Self) : Node[N, E]
+    dst(self: Self) : Node[N, E]
+}
+
+class Node[V] {
+    type Val = V
+
+    var v : V
+    var edges : List[Edge[Node[V]]]
+    edges(self: Self) : List[Edge[V]] {
+        self.edges
+    }
+}
+
+class Edge[N] {
+    var start : N
+    var end : N
+    src(self: Self) : N { self.start }
+    dst(self: Self) : N { self.end }
+}
+
+
+type Graph[N, E] = (N <: GNode[N, E]) & (E <: GEdge[N, E])
+
+// ### Questions ###
+// can we prove Graph[Node[I32], Edge[Node[I32]]]?
+
+// given
+let entry : Node[I32]
+// can we call
+graphAlgorithm[Node[I32], Edge[Node[I32]]](entry)
+// ?
+
+graphAlgorithm[N, E](n : N) where Graph[N, E] {
+    ...
+}
+
+
+// can we express Tree[V] <: 
+
+
+// way to describe type Edge[N]
