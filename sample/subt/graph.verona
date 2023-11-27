@@ -2,26 +2,77 @@
 
 // List[T] <: Iterable[T]
 
-type GNode[V, N, E] = {
-    edges(self: Self) : Iterable[Edge[N]]
-    val(self: Self): V
+type GNode[E] = {
+    edges(self: Self) : Iterable[E]
+}
+
+type GEdge[N] = {
+    src(self: Self) : N
+    dst(self: Self) : N
 }
 
 
-type GEdge[N, E] = {
-    src(self: Self) : Node[N, E]
-    dst(self: Self) : Node[N, E]
+type Graph[N, E] = (N <: GNode[E]) & (E <: GEdge[N])
+
+type Container[V] = {
+    val(self: Self) : V
 }
+
+type Equal[V] = {
+    equals(v1: V, v2: V) : Bool
+}
+
+class LT {}
+class EQ {}
+class GT {}
+
+type Order = LT | EQ | GT
+
+type Comparable[V] = {
+    compare(v1: V, v2: V) : Order
+}
+
+
+type ValueGraph[V, N, E] = Graph[N, E] & (N < Container[V])
+
+searchGraph[V, N, E](n : N, v : V) : Option[N]
+    where ValueGraph[V, N, E] & (V <: Equal[V]) & (N <: Comparable[N])
+{
+    let visited = Set[N]::create();
+    let pending = Queue[N]::create({n});
+
+    while (!pending.empty()) {
+        let next = pending.dequeue();
+
+        if (!visited.contains(next)) {
+            visited.add(next);
+            if (next.val() == v) {
+                Some(next)
+            }
+            else {
+                for (edge : next.edges()) {
+                    pending.enqueue(edge.dst());
+                }
+            }
+        }
+    }
+
+    None
+}
+
 
 class Node[V] {
-    type Val = V
-
     var v : V
+
     var edges : List[Edge[Node[V]]]
-    edges(self: Self) : List[Edge[V]] {
+    edges(self: Self) : Iterable[Edge[Node[V]]] {
         self.edges
     }
+    compare(self: Self, other: Self) : Ord {
+        ... // use addressOf?
+    }
 }
+
 
 class Edge[N] {
     var start : N
@@ -31,23 +82,5 @@ class Edge[N] {
 }
 
 
-type Graph[N, E] = (N <: GNode[N, E]) & (E <: GEdge[N, E])
-
-// ### Questions ###
-// can we prove Graph[Node[I32], Edge[Node[I32]]]?
-
-// given
-let entry : Node[I32]
-// can we call
-graphAlgorithm[Node[I32], Edge[Node[I32]]](entry)
-// ?
-
-graphAlgorithm[N, E](n : N) where Graph[N, E] {
-    ...
-}
-
-
-// can we express Tree[V] <: 
-
-
-// way to describe type Edge[N]
+// TODO try to typecheck in compiler
+// TODO try to typecheck by hand
