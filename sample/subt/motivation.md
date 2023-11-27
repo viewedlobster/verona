@@ -280,7 +280,7 @@ In a system without method-level where clauses, we would need to bifurcate each
 class on whether the class should be able to handle iso values or not.
 
 Where clauses on methods are very intentional, and allows us to give better
-error messages.
+error messages. E.g. "Ref[T]::get() not available since T </: imm | mut"
 
 
 #### Type level where
@@ -315,8 +315,7 @@ type Constraint[T] = List[T] <: ROList[T]
 * TODO think about if there are any motivating examples
 
 #### Subtype types (`T <: S`)
-Lets us define constraints that can be reused
-* TODO: is there anything in specific here
+Lets us define constraints that can be reused. See graph example.
 
 ##### Related to subject/observer
 Has stuff like this?

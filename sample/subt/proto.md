@@ -90,17 +90,9 @@ C, i ⊧ₙ₊₁ t <: t'   iff   t, i ⊧*ₙ t'
 
 # Subtyping rules
 
-
-* TODO: add rule(s) for method signatures
-```
-[X...] mt where t <: [Y...] mt' where t'
-
-Z... 
-
-t'[Z.../Y...] <: t[Z.../X...]
-```
 We translate into types from code by the following transformation
 
+* TODO: fix this stuff
 ```verona
 class C[X...] {
     // clsbody
@@ -161,111 +153,68 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 Γ ⊢ Δ, t1 | t2
 
 
-Γ, X = A, B[A/X] ⊢ Δ
----- [subst-left]
-Γ, X = A, B ⊢ Δ
+// unsure if we need this, we could do substitution immediately, or perhaps add
+// subtype assumptions X <: A, A <: X instead.
+// Γ, X = A, B[A/X] ⊢ Δ
+// ---- [subst-left]
+// Γ, X = A, B ⊢ Δ
 
 
-Γ, X = A ⊢ Δ, B[A/X]
----- [subst-right]
-Γ, X = A ⊢ Δ, B
+// unsure if we need this, we could do substitution immediately, or perhaps add
+// subtype assumptions X <: A, A <: X instead.
+// Γ, X = A ⊢ Δ, B[A/X]
+// ---- [subst-right]
+// Γ, X = A ⊢ Δ, B
 
 
 ---- [discharge-syntactic]
 Γ, A ⊢ Δ, A
 
 
+// treating Γ like a set means that Γ can contain A <: B
 Γ ⊢ Δ, A
 Γ, B ⊢ Δ
 ---- [assume-sub] // (if Γ ⊢ A) should be a prerequisite in the implementation
 Γ, A <: B ⊢ Δ
 
 
-Γ*, A' ⊢ Δ*, A
-Γ*, B  ⊢ Δ*, B'
----- [arrow]
-Γ, A -> B ⊢ Δ, A' -> B'
-// TODO: see the Self typing concern below
+Γ*, A ⊢ B
+---- [prove-sub]
+Γ ⊢ Δ, A <: B
+
 
 alias_lookup(α) = A[X...]
 Γ, A[t.../X...] ⊢ Δ
 ---- [alias-left]
 Γ, α[t...] ⊢ Δ
 
+
 alias_lookup(α) = A[X...]
 Γ ⊢ Δ, A[t.../X...]
 ---- [alias-right]
 Γ ⊢ Δ, α[t...]
 
-// T[[α]] is of the form   α [t] ... [t]
-// where type application associate to the left
-// thus we expand leftmost alias in a type application
-// alias_lookup(α) = A
-// Γ ⊢ Δ, T[[A]]
-// ---- [alias-right]
-// Γ ⊢ Δ, T[[α]]
-// 
-// alias_lookup(α) = A
-// Γ, T[[A]] ⊢ Δ
-// ---- [alias-left]
-// Γ, T[[α]] ⊢ Δ
 
-class_lookup(c) = A[X...]
-Γ, Self = c[t...], A[t.../X...] ⊢ Δ
+class_lookup(c) = A, X... // A has holes with X...
+Γ, Self <: c[t...], c[t...] <: Self, A[t.../X...] ⊢ Δ
 ---- [cls-left]
 Γ, c[t...] ⊢ Δ
-// what is the ramifications of having one single Self
+// what are the ramifications of having one single Self?
 
 
-∀i ∈ [1, length(t...)]. Γ, c[t...] <: c[t'...] ⊢ (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
----- [cls-right] // note the non-symmetry compared to alias rules
+// type JSON example needs assumption that c[t...] <: c[t'...]
+∀i. Γ, c[t...] <: c[t'...] ⊢ (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
+---- [cls-right]
 Γ, c[t...] ⊢ Δ, c[t'...]
 
 
-// TODO A and B should be method types, make sure to expand and check
-// co/contravariance
-Γ*, τ{ f : A } <: τ'{ f : B }, A ⊢ B
----- [focus]
-Γ, τ{ f : A } ⊢ Δ, τ'{ f : B }
-
-
-// Γ, A[B/X] ⊢ Δ
-// ---- [appl-left]
-// Γ, (∀X. A) [B] ⊢ Δ
-// 
-// 
-// Γ ⊢ Δ, A[B/X]
-// ---- [appl-right]
-// Γ ⊢ Δ, (∀X. A) [B]
-
-
-// this should correspond to the typing rule in Kernel F_{<:}
-Z fresh in (Γ, ∀X. A) and (Δ, ∀Y. B)
-Γ, A[Z/X] ⊢ Δ, B[Z/Y]
----- [poly]
-Γ, ∀X. A ⊢ Δ, ∀Y. B
-
-
-Γ, A[X...] ⊢ Δ, B[Y...]
-
-
-
-
-type A[X...]
-
-type B[X...]
-
-A[Z...] <: B[Z...]
-
-Γ*, A ⊢ Δ*, B
----- [sub-right]
-Γ ⊢ Δ, A <: B
-
-
-Γ ⊢ A <: B
-Γ, A <: B ⊢ Δ
----- [sub-assume]
-Γ ⊢ Δ
+// up to renaming of parameters X...
+Γ, τ{ ... } <: σ{ ... } ⊢ s'' <: t'' // don't think we can have Δ* on the right here, since it may contain τ{...} <: σ{...}
+∀j. Γ, τ{ ... } <: σ{ ... }, s'' ⊢ sⱼ <: tⱼ // don't need to add assumption s'' <: t'' for completeness
+Γ, τ{ ... } <: σ{ ... }, s'' ⊢ t' <: s'
+---- [method]
+Γ, τ{ f : [X...] t... -> t' where t''} ⊢ Δ, σ{ f : [X...] s... -> s' where s'' }
+// TODO write example to illustrate this rule
 
 
 ---- [top]
@@ -274,8 +223,6 @@ A[Z...] <: B[Z...]
 
 ---- [bottom]
 Γ, Bot ⊢ Δ
-
-
 ```
 
 
