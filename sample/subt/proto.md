@@ -174,12 +174,12 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 // treating Γ like a set means that Γ can contain A <: B
 Γ ⊢ Δ, A
 Γ, B ⊢ Δ
----- [assume-sub] // (if Γ ⊢ A) should be a prerequisite in the implementation
+---- [subt-left] // (if Γ ⊢ A) should be a prerequisite in the implementation
 Γ, A <: B ⊢ Δ
 
 
 Γ*, A ⊢ B
----- [prove-sub]
+---- [subt-right]
 Γ ⊢ Δ, A <: B
 
 
@@ -209,8 +209,8 @@ class_lookup(c) = A, X... // A has holes with X...
 
 
 // up to renaming of parameters X...
-Γ, τ{ ... } <: σ{ ... } ⊢ s'' <: t'' // don't think we can have Δ* on the right here, since it may contain τ{...} <: σ{...}
-∀j. Γ, τ{ ... } <: σ{ ... }, s'' ⊢ sⱼ <: tⱼ // don't need to add assumption s'' <: t'' for completeness
+Γ, τ{ ... } <: σ{ ... } ⊢ s'' <: t''
+∀j.   Γ, τ{ ... } <: σ{ ... }, s'' ⊢ sⱼ <: tⱼ
 Γ, τ{ ... } <: σ{ ... }, s'' ⊢ t' <: s'
 ---- [method]
 Γ, τ{ f : [X...] t... -> t' where t''} ⊢ Δ, σ{ f : [X...] s... -> s' where s'' }
@@ -224,6 +224,75 @@ class_lookup(c) = A, X... // A has holes with X...
 ---- [bottom]
 Γ, Bot ⊢ Δ
 ```
+
+* TODO: for each rule, have one example that uses it
+
+* cls-right is needed for recursion on class parameters (`Array[T]` is a class)
+```verona
+type JSON = String | Number | Array[JSON]
+
+type JSON' = String | Number | Array[JSON']
+
+
+// These trees are written upside down, i.e. conclusion at the top
+⊢ JSON <: JSON'
+---- [subt-right]
+JSON ⊢ JSON'
+---- [alias-left] + [alias-right]
+String | Number | Array[JSON] ⊢ String | Number | Array[JSON']
+---- [disj-right]
+String | Number | Array[JSON] ⊢ String, Number, Array[JSON']
+---- [disj-left] x 2
+(1) String ⊢ String, Number, Array[JSON'] // done by discharge-syntactic
+(2) Number ⊢ String, Number, Array[JSON'] // done by discharge-syntactic
+(3) Array[JSON] ⊢ String, Number, Array[JSON']
+
+(3)
+---- [cls-right]
+Array[JSON] <: Array[JSON'] ⊢ (JSON <: JSON') & (JSON' <: JSON)
+---- [conj-right]
+(3.1) Array[JSON] <: Array[JSON'] ⊢ (JSON <: JSON')
+(3.2) Array[JSON] <: Array[JSON'] ⊢ (JSON' <: JSON)
+
+
+(3.1)
+---- [subt-right]
+Array[JSON] <: Array[JSON'], JSON ⊢ JSON'
+---- [alias-right] + [alias-left]
+Array[JSON] <: Array[JSON'], String | Number | Array[JSON] ⊢ String | Number | Array[JSON']
+---- [disj-right]
+Array[JSON] <: Array[JSON'], String | Number | Array[JSON] ⊢ String, Number, Array[JSON']
+---- [disj-left]
+(3.1.1) Array[JSON] <: Array[JSON'], String ⊢ String, Number, Array[JSON'] // done by discharge-syntactic
+(3.1.2) Array[JSON] <: Array[JSON'], Number ⊢ String, Number, Array[JSON'] // done by discharge-syntactic
+(3.1.3) Array[JSON] <: Array[JSON'], Array[JSON] ⊢ String, Number, Array[JSON']
+
+
+(3.1.3)
+----- [subt-left]
+(3.1.3.1) Array[JSON] <: Array[JSON'], Array[JSON] ⊢ String, Number, Array[JSON'], Array[JSON] // done by discharge-syntactic
+(3.1.3.2) Array[JSON] <: Array[JSON'], Array[JSON], Array[JSON'] ⊢ String, Number, Array[JSON'] // done by discharge-syntactic
+
+
+(3.2)
+---- [subt-right]
+Array[JSON] <: Array[JSON'], JSON' ⊢ JSON
+---- [alias-left] + [alias-right]
+Array[JSON] <: Array[JSON'], String | Number | Array[JSON'] ⊢ String | Number | Array[JSON]
+---- [disj-right] + [disj-left]
+(3.2.1) Array[JSON] <: Array[JSON'], String ⊢ String, Number, Array[JSON] // done by discharge-syntactic
+(3.2.2) Array[JSON] <: Array[JSON'], Number ⊢ String, Number, Array[JSON] // done by discharge-syntactic
+(3.2.3) Array[JSON] <: Array[JSON'], Array[JSON'] ⊢ String, Number, Array[JSON]
+
+
+(3.2.3)
+---- [cls-right]
+Array[JSON] <: Array[JSON'], Array[JSON'] <: Array[JSON] ⊢ (JSON' <: JSON) & (JSON <: JSON')
+---- [conj-right]
+(3.2.3.1) Array[JSON] <: Array[JSON'], Array[JSON'] <: Array[JSON] ⊢ (JSON' <: JSON) // follows similarly to (3.1)
+(3.2.3.1) Array[JSON] <: Array[JSON'], Array[JSON'] <: Array[JSON] ⊢ (JSON <: JSON') // follows similarly to (3.1)
+```
+
 
 
 ```verona
