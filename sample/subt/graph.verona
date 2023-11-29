@@ -2,6 +2,11 @@
 
 // List[T] <: Iterable[T]
 
+// TODO: look into abstracting type parameters into type fields, and being able
+// to instansiate a library
+
+// keywords: associated types, materials and shapes
+
 type GNode[E] = {
     edges(self: Self) : Iterable[E]
 }

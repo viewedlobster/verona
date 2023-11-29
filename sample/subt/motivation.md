@@ -1,6 +1,8 @@
 # Type system and motivation
 
 * TODO: turn the code fragment below into actual code accepted by the compiler
+* TODO: turn each example into test `ninja update-dump`
+
 
 ## Questions
 
@@ -242,7 +244,7 @@ class RBTree[T] where (T <: Comparable) {
     }
 }
 
-type X = RBTree[A | B] // Question: type error?
+type X = RBTree[A | B] // Question: type error? Matt/Ellen: We won't even get to the point of typechecking this.
 ```
 
 ```verona
@@ -250,13 +252,13 @@ type X = RBTree[A | B] // Question: type error?
 type Comparable[T] = {
     compare(s1 : Self, s2 : T) : Direction
 }
-// type Comparable[T] = {
-//     compare(s1 : T & Self, s2 : T) : Direction
-// }
-// Question: what happens if T has a capability?
-// type Comparable[T] = {
-//     compare(s1 : T, s2 : T) : Direction
-// }
+type Comparable[T] = {
+    compare(s1 : T & Self, s2 : T) : Direction
+}
+Question: what happens if T has a capability?
+type Comparable[T] = {
+    compare(s1 : T, s2 : T) : Direction
+}
 // Question: Are these equivalent?
 // Question: f(x : T) : ... where T <: imm
 //           f(x : T & imm) : ...
@@ -461,6 +463,7 @@ Is a class allowed to inherit methods from another class.
 
 
 Pro: Allows unanticipated code reuse
+
 Con: Allows unanticipated code reuse
 
 
