@@ -23,7 +23,8 @@ t ::= t | t
     | Bot
     | t <: t
 
-mt ::= [X...] mt_base where t
+mt ::= [X...] t... : t where t
+// TODO fix syntax
 
 mt_base ::= t -> mt_base
           | t
@@ -76,6 +77,9 @@ C, i ⊧ₙ X   iff   C ∈ i[X]
 
 
 // skipping Self for now
+
+// C, i ⊧ₙ Self   iff   C ∈ i[Self]
+// I think the question has boiled down into what we should do about multiple Self types.
 
 
 C, i ⊧ₙ Top   iff   true
@@ -178,6 +182,9 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 Γ, A <: B ⊢ Δ
 
 
+B ⊢ A <: B
+
+// TODO: define Γ*
 Γ*, A ⊢ B
 ---- [subt-right]
 Γ ⊢ Δ, A <: B
@@ -301,18 +308,6 @@ type Foo = { f : Self -> { g : Self -> Self } }
 // every trait has its own Self binder?
 ```
 * TODO: construct example where subtyping needs Self binders
-
-
-
-cut is a use of a lemma 
-
-```
-Γ ⊢ A
-Γ, A ⊢ Δ
----
-Γ ⊢ Δ
-
-```
 
 
 # Self typing stuff

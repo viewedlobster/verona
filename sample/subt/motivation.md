@@ -15,10 +15,18 @@ Mention nominal classes. Function taking meaters or feet
 TODO: ellen should write something here.
 
 ### Disjunction types: Why?
+```verona
+class C // defined somewhere else
+type Trait1
+
+C : Trait1
+```
 
 ```verona
 type T = A | B
+// change A and B to t1 t2
 ```
+
 
 Gives us a way to take existing types/classes and easily describe groupings of
 these. The main point is that this can be done after the fact of defining these
@@ -226,16 +234,33 @@ type Comparable = {
 
 class RBTree[T] where (T <: Comparable) {
     ...
+
+    method(...) {
+        ...
+        // x : T, y : T
+        x.compare(y) // Question: type error?
+    }
 }
 
-type X = RBTree[A | B]
+type X = RBTree[A | B] // Question: type error?
 ```
 
 ```verona
 // what does Self mean
 type Comparable[T] = {
-    compare(s1 : T & Self, s2 : T) : Direction
+    compare(s1 : Self, s2 : T) : Direction
 }
+// type Comparable[T] = {
+//     compare(s1 : T & Self, s2 : T) : Direction
+// }
+// Question: what happens if T has a capability?
+// type Comparable[T] = {
+//     compare(s1 : T, s2 : T) : Direction
+// }
+// Question: Are these equivalent?
+// Question: f(x : T) : ... where T <: imm
+//           f(x : T & imm) : ...
+// are they equivalent?
 
 class RBTree[T] where (T <: Comparable[T]) {
     ...
@@ -259,6 +284,7 @@ class Ref[T] {
 }
 
 class Array[T] {
+    // uses Ref[T]
     ...
     get(self: Self, idx : U32) : T where T <: mut | imm // i.e. not iso
     {
@@ -284,7 +310,7 @@ error messages. E.g. "Ref[T]::get() not available since T </: imm | mut"
 
 
 #### Type level where
-
+* TODO: look shapes and materials
 ```verona
 type Comparable = {
     compare(self : Self, other : Self) : Direction
@@ -303,6 +329,7 @@ class RBTree[V] where (V <: Comparable) {...}
 
 The alternative would be to have bounds for each parameter to a type:
 ```notverona
+// not verona
 class RBTree[V <: Comparable] {...}
 ```
 
@@ -325,6 +352,8 @@ type Constraint[T] = T <: ROList[T]
 
 ```verona
 type SubObs[S,O] = (S < Subject[O]) & (O < Observer[S])
+
+type False = I32 < Bool
 
 type Subject[O] = 
 {
