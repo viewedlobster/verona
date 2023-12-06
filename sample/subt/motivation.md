@@ -1,7 +1,7 @@
 # Type system and motivation
 
 * TODO: turn the code fragment below into actual code accepted by the compiler
-* TODO: turn each example into test `ninja update-dump`
+* TODO: turn each example into test through `ninja update-dump`
 
 
 ## Questions
@@ -18,15 +18,7 @@ TODO: ellen should write something here.
 
 ### Disjunction types: Why?
 ```verona
-class C // defined somewhere else
-type Trait1
-
-C : Trait1
-```
-
-```verona
-type T = A | B
-// change A and B to t1 t2
+type T = T1 | T2
 ```
 
 
@@ -46,15 +38,19 @@ f (x : t) (g : ... -> s) =
         A a => ...
         _   => g x
 ```
-What is the type of g? With disjunction types we could represent t as
+What is the type of g? With disjunction types we could represent `t` as `T`
 ```verona
 type T = T1 | T2 | T3
 
-// g : T2 | T3 -> S
+f(x : T, g : (T2 | T3) -> S) : S {
+    match x with {
+        {(y: T1) => ...}
+        {_ => g x }
+    }
+}
 ```
 in ML we would have to construct an explicit type for this restriction and then
-expand the match statement to deconstruct x and construct elements of this new
-type.
+expand the match statement to deconstruct x for all specific cases.
 
 #### Discrimination:
 This type in ML
@@ -66,12 +62,12 @@ Would perhaps be naively encoded like this
 ```verona
 type T = I32 | I32
 ```
-but then we cannot discriminate between cases
+but then we cannot discriminate between cases.
 
-But we can solve this by explicitly adding a level of types
+But we can easily solve this by explicitly adding a level of types
 ```verona
-class A { val: I32 } 
-class B { val: I32 } 
+class A { let val: I32 } 
+class B { let val: I32 } 
 
 type T = A | B
 ```
@@ -79,7 +75,20 @@ type T = A | B
 * TODO: check what polymorphic variants can do in ocaml
 
 #### Explicit nullability
-...
+Specifically, nullability is easy to encode with a class `None`:
+```verona
+type A // not nullable
+class None {}
+
+f(x : A | None) : S {
+    match x with {
+        {(y : A) => ... }
+        {_ => ... /* x : None */ }
+    }
+}
+```
+* TODO: how are match expressions written in verona? Should they be part of the
+  standard library?
 
 ### Conjunction types: why?
 
@@ -87,24 +96,30 @@ type T = A | B
 Since our type system is structural, conjunction types is a convenient way to
 express combinations of other types, like traits.
 ```verona
-
 type A
 type B
 type C = A & B
 
 
-// in java
-interface C extends A, B {...}
-
-f(x : A & B) = ...
+f(x : A & B) : S = ... // A & B combined on the fly
+g(x : C) : S = ... // using type alias
 ```
 
-Kind of the answer to multiple inheritance in C++.
+Java would require us to define a new interface `C` and write a method `f`
+```java
+interface C extends A, B {...}
+
+class U {
+    static S f(C x) { ... }
+}
+```
+
+With default methods we can also combine traits and get a behaviour similar to
+multiple inheritance in C++.
 ```verona
-// Question: what would you write to inherit default implementations from Trait1
+// Check: what would you write to inherit default implementations from Trait1
 // and Trait2?
-class C : Trait1 & Trait2
-// TODO need to check in compiler
+class C : Trait1 & Trait2 { ... }
 ```
 
 ##### For ln: Things to mention
@@ -115,34 +130,36 @@ class C : Trait1 & Trait2
 
 #### Integration with capabilities
 
-A type C with capability mut can be expressed as
+A class type `C` with capability mut can be expressed as
 ```verona
-C & mut
+type MutC = C & mut
+```
+This means that capabilities are part of regular types, and are not treated any
+differently from a subtyping perspective. We can look at a value of type `C`
+without assigning any capability, but without any capability no operations are
+possible. We can thus see methods as descriptions of actions, and capabilities
+the permission to perform certain actions.
+
+For generics, we thus don't need a quantifier specifically for capabilities.
+Instead it's all part of the same type declaration.
+```verona
+type A[T] // can be instantiated to
+type Instantiated = A[mut & C]
 ```
 
-For generics, we don't need a quantifier specifically for capabilities. Instead
-it's all part of the same type declaration.
+In order to define operations on values of a generic type, i.e. define methods,
+we add assumptions about capabilities in their signature.
 ```verona
-type A[T] 
-
-// can be instantiated to
-
-A[mut & C]
-```
-
-Adding assumptions about types in a convenient way
-```verona
-type A[T] = {
-    f(T & imm) : S & imm
+class C[T] = {
+    f(x: T & imm) : S & imm
 }
-// here we add the assumption that T is of Imm type in the method declaration
 ```
 
 ### Ad-hoc polymorphism
 
-#### Inheritance: Why don't we have it?
-"Reuse is not subtyping", i.e. extending something does not imply subtyping.
-
+#### Inheritance does not imply subtyping
+Simply put, reuse of code from a class `C` in class `D` does not make a `D` a
+`C`. I.e. inheriting methods does not imply subtyping.
 ```verona
 class C {
     equal(self: C, other: C): Bool {...}
@@ -156,6 +173,8 @@ class D : C {
     g(...): ... { ... f(...) ... }
 }
 ```
+This means that classification into more general types can only be done through
+traits.
 
 * Question: Should classes really be extendable? There is a case to be made for
   classes to not be extendable: to be sure that you don't muck about in some
@@ -205,9 +224,17 @@ Question: are traits able to specify fields? (compare to abstract classes in jav
 
 Question: do we want default implementations if not specified by the class
 definition? E.g. type classes, or scala implicits.
-Can we declare trait implementation/default implementation somewhere which isn't
-the class definition?
+I.e. Can we declare trait implementation/default implementation somewhere which isn't
+the class definition? E.g.
 
+```verona
+class C // defined somewhere else
+type Trait1
+
+C : Trait1 // make C inherit from Trait1
+```
+
+This is akin type classes in haskell, or implicit type class parameters in scala.
 
 Sidenote on haskell type classes.
 ```haskell
@@ -228,6 +255,8 @@ type Equalable = { equals(self : Self, other : Self) : Bool }
 ```
 
 * Question: what do we want in terms of self typing?
+
+This wouldn't work.
 ```verona
 // what does Self mean
 type Comparable = {
@@ -240,11 +269,11 @@ class RBTree[T] where (T <: Comparable) {
     method(...) {
         ...
         // x : T, y : T
-        x.compare(y) // Question: type error?
+        x.compare(y) // Type error, since we cannot prove that T <: Self
     }
 }
 
-type X = RBTree[A | B] // Question: type error? Matt/Ellen: We won't even get to the point of typechecking this.
+type X = RBTree[A | B] // We won't even get to the point of typechecking this.
 ```
 
 ```verona
@@ -252,14 +281,14 @@ type X = RBTree[A | B] // Question: type error? Matt/Ellen: We won't even get to
 type Comparable[T] = {
     compare(s1 : Self, s2 : T) : Direction
 }
-type Comparable[T] = {
-    compare(s1 : T & Self, s2 : T) : Direction
-}
-Question: what happens if T has a capability?
-type Comparable[T] = {
-    compare(s1 : T, s2 : T) : Direction
-}
-// Question: Are these equivalent?
+// type Comparable[T] = {
+//     compare(s1 : T & Self, s2 : T) : Direction
+// }
+// Question: what happens if T has a capability?
+// type Comparable[T] = {
+//     compare(s1 : T, s2 : T) : Direction
+// }
+// Question: Are the three type definitions of Comparable[T] equivalent?
 // Question: f(x : T) : ... where T <: imm
 //           f(x : T & imm) : ...
 // are they equivalent?
@@ -431,7 +460,7 @@ What do we want from Self types?
 
 ### From traits
 
-Can something externally declare that a class satisfies a trait and thus give it
+Can we externally declare that a class satisfies a trait and thus give it
 default methods? E.g. type class instances.
 
 ```verona
@@ -440,10 +469,10 @@ class C // defined somewhere
 // without access to the definition of C
 
 // Question 1: can we "import" defaults?
-C extends Printable // ?
+class C : Printable // ?
 
 // Question 2: Can we "import" defaults and define new methods?
-C extends Printable {
+class C : Printable {
     toString(s: C) : String {
         ...
     }
@@ -479,3 +508,72 @@ keyword.
       f.op(g)
       ```
       Not really related to type system, but needs documenting somewhere.
+
+## Typecheck with Self
+are we allowed to match on Self type?
+
+
+# discussion stuff
+```verona
+// classes C and D has method toString
+let x : C = C::create()
+let s = x.toString() // static dispatch, since C is a concrete type
+
+let y : C | D = if (...) { C::create() } else { D::create() }
+let t = y.toString() // dynamic dispatch, since C | D is a complex type
+// it could however be optimized into something like this, since C | D is a closed world type
+let t = match y with {
+    ...
+}
+
+let z : ToString = if (...) { C::create() } else { D::create() }
+let u = z.toString() // dynamic dispatch
+```
+what is the differences `x`, `y` and `z` from a dynamic dispatch perspective?
+
+Even if `C` inherits a method, we can still statically deduce what method should
+be called
+```
+x.toString() ===> C::toString(x) ===> ToString::toString(x)
+// since we can create a map
+C::ToString -> ToString::toString
+```
+
+In java, static dispatch only occurs when
+1. the reciever class is final
+2. we call a private method
+3. we call a superclass method
+4. we call static method
+
+Elias & Ellen: Static dispatch should happen when we have a concrete class type as reciever.
+
+
+# equality trait
+```verona
+type Eq[T] = {
+    equal(self: Self, other: T) : Bool
+}
+
+
+class A {
+    equal(self: Self, other : A | B) : Bool {
+        match....
+    }
+}
+
+type Eq = {
+    equal[T](self: Self, other: Self | T) : Bool
+}
+
+
+class B {
+    equal[T](self: Self, other : B | T) : Bool {
+        ifsametype(self, other) {... {
+            B => { ... }
+            _ => { // other : T
+                ...
+            }
+        }
+    }
+}
+```
