@@ -37,9 +37,10 @@ A, B are types in the rules below
 
 # Denotation
 ```cmath
+// TODO try this out with json example?
 C ::= c[t...] (instantiated class)
 
-
+// TODO check if we can move n+1 -> n here?
 t, i ⊧*ₙ t' iff ∀C. C, i ⊧ₙ t   =>   C, i ⊧ₙ t'
 
 
@@ -58,10 +59,11 @@ c[t...], i ⊧ₙ₊₁ c[t'...] iff
     ∀j.   t'ⱼ, i ⊧*ₙ tⱼ   ∧   tⱼ, i ⊧*ₙ t'ⱼ
 
 
+// TODO not well defined for type T = T? do we need a wf check?  (μX.X)?
 C, i ⊧ₙ α[t...]   iff   C, i ⊧ₙ alias_lookup(α, t...)
 
 
-// up to some renaming of params X...
+// up to some renaming of params X..., no overlap of names in i
 C, i ⊧ₙ₊₁ τ{ f : [X...] t... -> t' where t'' } iff
     method_type(C, f) = [X...] s... -> s' where s''   ∧
     ∀Cs... . i' = i[X... ↦ Cs...]
