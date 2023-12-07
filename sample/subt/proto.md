@@ -22,12 +22,10 @@ t ::= t | t
     | Top
     | Bot
     | t <: t
+//    | t => t (might be able to replace "where t" on method types with this)
 
 mt ::= [X...] t... : t where t
 // TODO fix syntax
-
-mt_base ::= t -> mt_base
-          | t
 
 τ ∈ TraitIdentifiers
 α ∈ AliasNames
@@ -184,15 +182,18 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 Γ, A <: B ⊢ Δ
 
 
-B ⊢ A <: B
 
+// B, A ⊢ A, B // wrong
+// ----
+// B ⊢ A, A <: B
 // TODO: define Γ*
+// TODO: can we have Δ* on the right
 Γ*, A ⊢ B
 ---- [subt-right]
 Γ ⊢ Δ, A <: B
 
 
-alias_lookup(α) = A[X...]
+alias_lookup(α, t...) = A[X...]
 Γ, A[t.../X...] ⊢ Δ
 ---- [alias-left]
 Γ, α[t...] ⊢ Δ
@@ -212,7 +213,7 @@ class_lookup(c) = A, X... // A has holes with X...
 
 
 // type JSON example needs assumption that c[t...] <: c[t'...]
-∀i. Γ, c[t...] <: c[t'...] ⊢ (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
+∀i. Γ, c[t...] <: c[t'...] ⊢ Δ, (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
 ---- [cls-right]
 Γ, c[t...] ⊢ Δ, c[t'...]
 
@@ -454,4 +455,57 @@ Array[JSON] ⊢ String, Number, Array[JSON']
 JSON' <: JSON
 JSON <: JSON'
 
+```
+
+
+# Stoff
+```verona
+type Foo[T] = {
+    bar : T
+    baz : T
+}
+===>
+type Foo[T] = Foo1{
+    bar: T
+} & Foo2{
+    baz: T
+}
+
+
+class RBTree[T] where (T <: Comparable[T]) { 
+    ...
+    print(self: Self): Unit where T <: Printable
+}
+
+type RBTree[T] =
+    (T <: Comparable[T]) & { ... } &
+    ((T <: Printable) => { print(self: Self) : Unit})
+
+
+RBTree[Int] ===> 
+    (Int <: Comparable[Int]) & { ... } &
+    ((Int <: Printable) => { print(self: Self) : Unit})
+```
+
+```
+Y... fresh
+alias_lookup(A1) = t1[X...]
+alias_lookup(A2) = t2[X...]
+t1[Y.../X...] ⊢ t2[Y.../X...]
+----
+A1[X...] ⊢ A2[X...]
+```
+
+```verona
+type Foo[X] = {
+    bar: X
+    baz: X
+}
+// syntactic sugar for
+type Foo[X] = Foo1{ bar: X } & Foo2{ baz: X }
+
+
+type A[T] = { f : T } | { g : T }
+// represented by
+type A[T] = A1{ f : T } | A2{ g : T }
 ```
