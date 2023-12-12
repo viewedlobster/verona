@@ -1,0 +1,14 @@
+type Option[T] = Some[T] | None
+
+class Some[T] {
+    var v: T
+    isSome(self: Self): Bool {
+        true
+    }
+}
+
+class None {
+    isSome(self: Self): Bool {
+        false
+    }
+}

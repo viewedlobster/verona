@@ -1,0 +1,80 @@
+// graph: polymorphic types
+
+// List[T] < Iterable[T]
+
+// TODO: look into abstracting type parameters into type fields, and being able
+// to instansiate a library
+
+// keywords: associated types, materials and shapes
+
+type GNode[E] = {
+    edges(self: Self) : Iterable[E]
+}
+
+type GEdge[N] = {
+    src(self: Self) : N
+    dst(self: Self) : N
+}
+
+
+type Graph[N, E] = (N < GNode[E]) & (E < GEdge[N])
+
+type Container[V] = {
+    val(self: Self) : V
+}
+
+type ValueGraph[V, N, E] = Graph[N, E] & (N < Container[V])
+
+// searchGraph[V, N, E](n : N, v : V) : Option[N]
+//     where ValueGraph[V, N, E] & (V < Eq[V]) & (N < Comp[N])
+// {
+//     let visited = TreeSet[N]::create();
+//     let pending = LinkedQueue[N]::create();
+// 
+//     pending.add(n);
+// 
+//     while (!pending.isEmpty()) {
+//         let next = pending.poll();
+// 
+//         if (!visited.contains(next)) {
+//             visited.add(next);
+//             if (next.val() == v) {
+//                 Some(next)
+//             }
+//             else {
+//                 let edges = next.edges().iterator();
+// 
+//                 var edge = edges.next();
+//                 while (edge.isSome()) {
+//                     pending.add(edge.v.dst());
+//                     edge = edges.next();
+//                 }
+//             }
+//         }
+//     }
+// 
+//     None
+// }
+
+
+class Node[V] {
+    var v : V
+
+    var edg : List[Edge[Node[V]]]
+    edges(self: Self) : List[Edge[Node[V]]]
+    compare(self: Self, other: Self) : Ordering
+}
+
+
+class Edge[N] {
+    var start : N
+    var end : N
+    src(self: Self) : N { self.start }
+    dst(self: Self) : N { self.end }
+}
+
+
+let x : Subt[Node[I32], GNode[Edge[Node[I32]]]]
+
+// TODO try to typecheck in compiler
+// TODO try to typecheck by hand

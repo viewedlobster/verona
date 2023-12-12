@@ -1,0 +1,3 @@
+class Subt[T, S] where (T < S) {}
+
+let test: Subt[I32, I32]

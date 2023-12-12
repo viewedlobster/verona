@@ -1,0 +1,13 @@
+type Eq[T] = {
+    equals(self: Self, other: T): Bool
+}
+
+class LT {}
+class EQ {}
+class GT {}
+
+type Ordering = LT | EQ | GT
+
+type Comp[T] = {
+    compare(self: Self, other: T): Ordering
+}

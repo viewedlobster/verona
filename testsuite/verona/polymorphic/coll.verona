@@ -1,0 +1,51 @@
+type Collection[T] = {
+    add(self: Self, t: T): Unit
+    remove(self: Self, t: T): Bool
+    contains(self: Self, t: T): Bool
+    isEmpty(self: Self): Bool
+}
+
+type Iterable[T] = {
+    iterator(self: Self): Iterator[T]
+}
+
+type Iterator[T] = {
+    next(self: Self): Option[T]
+    hasNext(self: Self): Bool
+}
+
+type List[T] = Collection[T] & Iterable[T] & {
+    removeIdx(self: Self, i: I32): Option[T]
+    get(self: Self, i: I32): Option[T]
+}
+
+type Queue[T] = Collection[T] & Iterable[T] & {
+    poll(self: Self): Option[T]
+}
+
+type Stack[T] = Collection[T] & Iterable[T] & {
+    push(self: Self, t: T): Unit
+    pop(self: Self): Option[T]
+}
+
+class TreeSet[T] where (T < Comp[T]) {
+    create(): TreeSet[T] {
+        new ()
+    }
+    add(self: Self, t: T): Unit
+    remove(self: Self, t: T): Bool
+    contains(self: Self, t: T): Bool
+    isEmpty(self: Self): Bool
+    iterator(self: Self): Iterator[T]
+}
+
+class LinkedQueue[T] {
+    create(): LinkedQueue[T] {
+        new ()
+    }
+    add(self: Self, t: T): Unit
+    remove(self: Self, t: T): Bool
+    contains(self: Self, t: T): Bool
+    isEmpty(self: Self): Bool
+    poll(self: Self): Option[T]
+}
