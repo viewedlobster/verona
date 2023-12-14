@@ -1,5 +1,10 @@
 (* types for verona *)
 
+From TLC Require Import LibSet LibTactics.
+
+(* Module Verona. *)
+Declare Scope verona_type_scope.
+
 (*
 t ::= t | t
     | t & t
@@ -42,12 +47,65 @@ Inductive type : Type :=
 | TSub: type -> type -> type
 .
 
+(* TODO options for notation level for && and || ? *)
+Notation " t1 && t2 " := (TConj t1 t2).
+Notation " t1 || t2 " := (TDisj t1 t2).
+Notation " c [ ts ] " := (TClass c ts).
+Notation " a [ ts ] " := (TAlias a ts).
+Notation " τ <{ f : [ Xs ] ts : t1 'where' t2 }> " :=
+    (TTrait τ f Xs ts t1 t2) (at level 80).
+
+Notation " 'Self' " := (TSelf).
+Notation " 'Top' " := (TTop).
+Notation " 'Bot' " := (TBot).
+Notation " t1 <: t2 " := (TSub t1 t2) (at level 50).
+
 (*
 Γ, t1, t2 ⊢ Δ
 ---- [conj-left]
 Γ, t1 & t2 ⊢ Δ
 *)
 
-Inductive seq_sub :=
-| 
-.
+Open Scope verona_type_scope.
+Definition sequent := set type.
+Notation " Γ , t1 " := (Γ \u \{ t1 }) (at level 90, left associativity).
+
+Reserved Notation " Γ ⊢ Δ " (at level 95).
+Inductive seq_sub : sequent -> sequent -> Prop :=
+| SubConjLeft: forall (Γ Δ:sequent) (t1 t2:type),
+    Γ, t1, t2 ⊢ Δ ->
+    Γ, t1 && t2 ⊢ Δ
+| SubConjRight: forall Γ Δ t1 t2,
+    Γ ⊢ Δ, t1 ->
+    Γ ⊢ Δ, t2 ->
+    Γ ⊢ Δ, t1 && t2
+| SubDisjLeft: forall Γ Δ t1 t2,
+    Γ, t1 ⊢ Δ ->
+    Γ, t2 ⊢ Δ ->
+    Γ, t1 || t2 ⊢ Δ
+| SubDisjRight: forall Γ Δ t1 t2,
+    Γ ⊢ Δ, t1, t2 ->
+    Γ ⊢ Δ, t1 || t2
+| SubSyntactic: forall Γ Δ t,
+    Γ, t ⊢ Δ, t
+where " Γ ⊢ Δ " := (seq_sub Γ Δ).
+
+Definition type2sequent (t: type) : sequent := empty, t.
+Coercion type2sequent : type >-> sequent.
+
+Example ex_conj_elimination1 : forall a b,
+    a && b ⊢ a.
+Proof.
+    intros a b.
+    constructor.
+    replace (\{}, a, b) with (\{}, b, a).
+    - constructor.
+    - set_prove.
+Qed.
+
+Example ex_conj_elimination2 : forall a b,
+    a && b ⊢ b.
+Proof.
+    intros a b.
+    constructor. constructor.
+Qed.
