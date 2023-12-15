@@ -235,7 +235,12 @@ Proof.
 Qed.
 
 Example ex_sub_trans : forall Γ Δ a b c,
-    Γ, a, a <: b, b <: c ⊢ Δ, a <: c.
+    Γ, a <: b, b <: c ⊢ Δ, a <: c.
 Proof.
-  auto with verona.
+    intros.
+    apply SubSubRight.
+    rewrite union_comm; repeat rewrite union_assoc.
+    apply* SubSubLeft.
 Qed.
+
+(* TODO automate? *)
