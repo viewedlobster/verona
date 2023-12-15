@@ -152,6 +152,13 @@ Proof.
   rewrite Hinl. rewrite* Hinr.
 Qed.
 
+Lemma sub_parts : forall Γ Δ Γ' Δ',
+    Γ' \c Γ ->
+    Δ' \c Δ ->
+    Γ' ⊢ Δ' ->
+    Γ ⊢ Δ.
+Proof. Abort.
+
 Lemma sub_top_in_right : forall Γ Δ,
     Top \in (Δ: set type) ->
     Γ ⊢ Δ.
