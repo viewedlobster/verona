@@ -65,6 +65,7 @@ Notation " t1 <: t2 " := (TSub t1 t2) (at level 50).
 *)
 
 Open Scope verona_type_scope.
+
 Definition sequent := list type.
 Notation " Γ , t1 " := (t1 :: Γ) (at level 90, left associativity).
 Notation " Γ ,, Δ " := (Δ ++ Γ) (at level 94, left associativity).
@@ -102,7 +103,6 @@ Inductive seq_sub : sequent -> sequent -> Prop :=
 | SubDisjRight: forall Γ Δ t1 t2,
   Γ ⊢ Δ, t1, t2 ->
   Γ ⊢ Δ, t1 || t2
-| SubAlphaLeft
 where " Γ ⊢ Δ " := (seq_sub Γ Δ).
 
 
