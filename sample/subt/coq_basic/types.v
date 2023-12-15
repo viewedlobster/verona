@@ -74,6 +74,20 @@ Coercion type2sequent : type >-> sequent.
 
 Reserved Notation " Γ ⊢ Δ " (at level 95).
 Inductive seq_sub : sequent -> sequent -> Prop :=
+| SubOrderLeft: forall Γ Δ a b,
+  Γ, b, a ⊢ Δ ->
+  Γ, a, b ⊢ Δ
+| SubOrderRight: forall Γ Δ a b,
+  Γ ⊢ Δ, b, a ->
+  Γ ⊢ Δ, a, b
+| SubDropLeft: forall Γ Δ a,
+  Γ ⊢ Δ ->
+  Γ, a ⊢ Δ
+| SubDropRight: forall Γ Δ a,
+  Γ ⊢ Δ ->
+  Γ ⊢ Δ, a
+| SubSyntactic: forall Γ Δ t,
+  Γ, t ⊢ Δ, t
 | SubConjLeft: forall Γ Δ t1 t2,
   Γ, t1, t2 ⊢ Δ ->
   Γ, t1 && t2 ⊢ Δ
@@ -88,26 +102,7 @@ Inductive seq_sub : sequent -> sequent -> Prop :=
 | SubDisjRight: forall Γ Δ t1 t2,
   Γ ⊢ Δ, t1, t2 ->
   Γ ⊢ Δ, t1 || t2
-| SubSyntactic: forall Γ Δ t,
-  Γ, t ⊢ Δ, t
-| SubOrderLeft: forall Γ Δ a b,
-  Γ, b, a ⊢ Δ ->
-  Γ, a, b ⊢ Δ
-| SubOrderRight: forall Γ Δ a b,
-  Γ ⊢ Δ, b, a ->
-  Γ ⊢ Δ, a, b
-| SubDupLeft: forall Γ Δ a,
-  Γ, a, a ⊢ Δ ->
-  Γ, a ⊢ Δ
-| SubDupRight: forall Γ Δ a,
-  Γ ⊢ Δ, a, a ->
-  Γ ⊢ Δ, a
-| SubDropLeft: forall Γ Δ a,
-  Γ ⊢ Δ ->
-  Γ, a ⊢ Δ
-| SubDropRight: forall Γ Δ a,
-  Γ ⊢ Δ ->
-  Γ ⊢ Δ, a
+| SubAlphaLeft
 where " Γ ⊢ Δ " := (seq_sub Γ Δ).
 
 
@@ -182,7 +177,7 @@ Proof.
     * subst. apply syntactic_in_right. assumption.
     * apply SubDropLeft. apply IHΓ. assumption. assumption.
 Qed.
-  
+
 
 
 
