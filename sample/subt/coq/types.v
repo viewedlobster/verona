@@ -108,6 +108,7 @@ Inductive class_table := Classes (lcls: list (nat * type)).
 
 Definition type2sequent (t: type) : sequent := \{ t }.
 Coercion type2sequent : type >-> sequent.
+
 Reserved Notation "Γ ⊢ Δ" (at level 95).
 Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
     sequent -> sequent -> Prop :=
@@ -142,14 +143,14 @@ Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
     Γ, Bot ⊢ Δ
 where "Γ ⊢ Δ" := (seq_sub Γ Δ).
 
-Notation "{{ cls ; als ; Γ ⊢ Δ }}" := (@seq_sub cls als Γ Δ) (at level 39).
-
 Local Hint Constructors seq_sub : verona.
 
-Lemma sub_exact_in : forall a Γ Δ (cls:class_table) (als:alias_table),
+Notation "cls ; als // Γ .⊢ Δ" := (@seq_sub cls als Γ Δ) (at level 95).
+
+Lemma sub_exact_in : forall a Γ Δ cls als,
     (a \in (Γ: set type)) ->
     (a \in (Δ: set type)) ->
-    @seq_sub cls als Γ Δ.
+    cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinl Hinr.
   apply eq_union_single_remove_one in Hinl.
@@ -158,16 +159,16 @@ Proof.
   rewrite Hinl. rewrite* Hinr.
 Qed.
 
-Lemma sub_parts : forall Γ Δ Γ' Δ',
+Lemma sub_parts : forall Γ Δ Γ' Δ' cls als,
     Γ' \c Γ ->
     Δ' \c Δ ->
-    Γ' ⊢ Δ' ->
-    Γ ⊢ Δ.
+    cls; als // Γ' .⊢ Δ' ->
+    cls; als // Γ .⊢ Δ.
 Proof. Abort.
 
-Lemma sub_top_in_right : forall Γ Δ,
+Lemma sub_top_in_right : forall Γ Δ cls als,
     Top \in (Δ: set type) ->
-    Γ ⊢ Δ.
+    cls; als // Γ .⊢ Δ.
 Proof.
   introv Hin.
   apply eq_union_single_remove_one in Hin.
@@ -175,9 +176,9 @@ Proof.
   rewrite* Hin.
 Qed.
 
-Lemma sub_bot_in_left : forall Γ Δ,
+Lemma sub_bot_in_left : forall Γ Δ cls als,
     Bot \in (Γ: set type) ->
-    Γ ⊢ Δ.
+    cls; als // Γ .⊢ Δ.
 Proof.
   introv Hin.
   apply eq_union_single_remove_one in Hin.
@@ -199,61 +200,70 @@ Ltac solve_sequent :=
 
 Local Hint Extern 2 => solve_sequent : verona.
 
-Example ex_conj_elimination1 : forall Γ Δ a b,
-    Γ, a && b ⊢ Δ, a.
+Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
+
+Example ex_conj_elimination1 : forall Γ Δ a b cls als,
+    cls; als // Γ, a && b .⊢ Δ, a.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_conj_elimination2 : forall Γ Δ a b,
-    Γ, a && b ⊢ Δ, b.
+Example ex_conj_elimination2 : forall Γ Δ a b cls als,
+    cls; als // Γ, a && b .⊢ Δ, b.
 Proof.
     auto with verona.
 Qed.
 
-Example ex_conj_introduction : forall Γ Δ a b,
-    Γ, a, b ⊢ Δ, a && b.
+Example ex_conj_introduction : forall Γ Δ a b cls als,
+    cls; als // Γ, a, b .⊢ Δ, a && b.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_disj_introduction1 : forall Γ Δ a b,
-    Γ, a ⊢ Δ, a || b.
+Example ex_disj_introduction1 : forall Γ Δ a b cls als,
+    cls; als // Γ, a .⊢ Δ, a || b.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_disj_introduction2 : forall Γ Δ a b,
-    Γ, b ⊢ Δ, a || b.
+Example ex_disj_introduction2 : forall Γ Δ a b cls als,
+    cls; als // Γ, b .⊢ Δ, a || b.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_disj_elimination : forall Γ Δ a b,
-    Γ, a || b ⊢ Δ, a, b.
+Example ex_disj_elimination : forall Γ Δ a b cls als,
+    cls; als // Γ, a || b .⊢ Δ, a, b.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_deep_ex_falso : forall Γ Δ a b c d e,
-    Γ, Bot, a, b, c, d, e ⊢ Δ.
+Example ex_deep_ex_falso : forall Γ Δ a b c d e cls als,
+    cls; als // Γ, Bot, a, b, c, d, e .⊢ Δ.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_deep_tauto : forall Γ Δ a b c d e,
-    Γ ⊢ Δ, Top, a, b, c, d, e.
+Example ex_deep_tauto : forall Γ Δ a b c d e cls als,
+    cls; als // Γ .⊢ Δ, Top, a, b, c, d, e.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_sub_trans : forall Γ Δ a b c,
-    Γ, a <: b, b <: c ⊢ Δ, a <: c.
+Example ex_sub_trans : forall Γ Δ a b c cls als,
+    cls; als // Γ, a <: b, b <: c .⊢ Δ, a <: c.
 Proof.
     intros.
     apply SubSubRight.
     rewrite union_comm; repeat rewrite union_assoc.
-    apply* SubSubLeft.
+    constructors*.
 Qed.
 
-(* TODO automate? *)
+Example ex_sub_trans' : forall Γ Δ a b c cls als,
+    cls; als // Γ, a, b <: c, a <: b .⊢ Δ, a <: c.
+Proof.
+  introv.
+  repeat constructors*.
+  do 2 rotate_sequent.
+  constructors*.
+Qed.
