@@ -157,9 +157,9 @@ Local Hint Constructors seq_sub : verona.
 
 Notation "cls ; als // Γ .⊢ Δ" := (@seq_sub cls als Γ Δ) (at level 95).
 
-Lemma sub_exact_in : forall a Γ Δ cls als,
-    (a \in (Γ: set type)) ->
-    (a \in (Δ: set type)) ->
+Lemma sub_exact_in : forall A Γ Δ cls als,
+    A \in (Γ: set type) ->
+    A \in (Δ: set type) ->
     cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinl Hinr.
@@ -167,6 +167,29 @@ Proof.
   apply eq_union_single_remove_one in Hinr.
   rewrite union_comm in Hinl, Hinr.
   rewrite Hinl. rewrite* Hinr.
+Qed.
+
+Lemma sub_sub_in_left : forall A B Γ Δ cls als,
+    (A <: B) \in (Γ: set type) ->
+    cls; als // Γ \-- (A <: B) .⊢ Δ, A ->
+    cls; als // Γ \-- (A <: B), B .⊢ Δ ->
+    cls; als // Γ .⊢ Δ.
+Proof.
+  introv Hinl H1 H2.
+  apply eq_union_single_remove_one in Hinl.
+  rewrite union_comm in Hinl.
+  rewrite* Hinl.
+Qed.
+
+Lemma sub_sub_in_right : forall A B Γ Δ cls als,
+    (A <: B) \in (Δ: set type) ->
+    cls; als // Γ, A .⊢ B ->
+    cls; als // Γ .⊢ Δ.
+Proof.
+  introv Hinr H1.
+  apply eq_union_single_remove_one in Hinr.
+  rewrite union_comm in Hinr.
+  rewrite* Hinr.
 Qed.
 
 Lemma sub_parts : forall Γ Δ Γ' Δ' cls als,
@@ -196,56 +219,60 @@ Proof.
   rewrite* Hin.
 Qed.
 
-Ltac solve_sequent :=
+Local Hint Resolve sub_exact_in : verona.
+Local Hint Resolve sub_sub_in_left : verona.
+Local Hint Resolve sub_sub_in_right : verona.
+Local Hint Resolve sub_bot_in_left : verona.
+Local Hint Resolve sub_top_in_right : verona.
+Local Hint Extern 1 => set_prove : verona.
+
+(* TODO: Turn into lemma, sub_singleton_right *)
+Ltac solve_singleton :=
   match goal with
   | _ : _ |- _ ⊢ (type2sequent ?A) => solve [apply (sub_exact_in A); set_prove]
   | |- _ ⊢ (type2sequent ?A) => solve [apply (sub_exact_in A); set_prove]
-  | _ : _ |- _ ⊢ _ => solve [eapply sub_exact_in; set_prove
-                            |eapply sub_top_in_right; set_prove
-                            |eapply sub_bot_in_left; set_prove]
-  |       |- _ ⊢ _ => solve [eapply sub_exact_in; set_prove
-                            |eapply sub_top_in_right; set_prove
-                            |eapply sub_bot_in_left; set_prove]
   end.
-
-Local Hint Extern 2 => solve_sequent : verona.
+Local Hint Extern 1 => solve_singleton : verona.
 
 Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
+
+Tactic Notation "rotate_sequent*" := rotate_sequent; auto_star.
+Tactic Notation "rotate_sequent~" := rotate_sequent; auto_tilde.
 
 Example ex_conj_elimination1 : forall Γ Δ a b cls als,
     cls; als // Γ,, a && b .⊢ Δ,, a.
 Proof.
-  auto with verona.
+  eauto with verona.
 Qed.
 
 Example ex_conj_elimination2 : forall Γ Δ a b cls als,
     cls; als // Γ,, a && b .⊢ Δ,, b.
 Proof.
-    auto with verona.
+  eauto with verona.
 Qed.
 
 Example ex_conj_introduction : forall Γ Δ a b cls als,
     cls; als // Γ,, a,, b .⊢ Δ,, a && b.
 Proof.
-  auto with verona.
+  eauto with verona.
 Qed.
 
 Example ex_disj_introduction1 : forall Γ Δ a b cls als,
     cls; als // Γ,, a .⊢ Δ,, a || b.
 Proof.
-  auto with verona.
+  eauto with verona.
 Qed.
 
 Example ex_disj_introduction2 : forall Γ Δ a b cls als,
     cls; als // Γ,, b .⊢ Δ,, a || b.
 Proof.
-  auto with verona.
+  eauto with verona.
 Qed.
 
 Example ex_disj_elimination : forall Γ Δ a b cls als,
     cls; als // Γ,, a || b .⊢ Δ,, a,, b.
 Proof.
-  auto with verona.
+  eauto with verona.
 Qed.
 
 Example ex_deep_ex_falso : forall Γ Δ a b c d e cls als,
@@ -263,17 +290,15 @@ Qed.
 Example ex_sub_trans : forall Γ Δ a b c cls als,
     cls; als // Γ,, a <: b,, b <: c .⊢ Δ,, a <: c.
 Proof.
-    intros.
-    apply SubSubRight.
-    rewrite union_comm; repeat rewrite union_assoc.
-    constructors*.
+  introv.
+  apply* sub_sub_in_right.
+  rotate_sequent*.
 Qed.
 
 Example ex_sub_trans' : forall Γ Δ a b c cls als,
     cls; als // Γ,, a,, b <: c,, a <: b .⊢ Δ,, a <: c.
 Proof.
   introv.
-  repeat constructors*.
-  do 2 rotate_sequent.
   constructors*.
+  rotate_sequent*.
 Qed.
