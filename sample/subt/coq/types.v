@@ -123,34 +123,34 @@ Reserved Notation "Γ ⊢ Δ" (at level 95).
 Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
     sequent -> sequent -> Prop :=
 | SubConjLeft: forall (Γ Δ:sequent) (t1 t2:type),
-    Γ, t1, t2 ⊢ Δ ->
-    Γ, t1 && t2 ⊢ Δ
+    Γ,, t1,, t2 ⊢ Δ ->
+    Γ,, t1 && t2 ⊢ Δ
 | SubConjRight: forall Γ Δ t1 t2,
-    Γ ⊢ Δ, t1 ->
-    Γ ⊢ Δ, t2 ->
-    Γ ⊢ Δ, t1 && t2
+    Γ ⊢ Δ,, t1 ->
+    Γ ⊢ Δ,, t2 ->
+    Γ ⊢ Δ,, t1 && t2
 | SubDisjLeft: forall Γ Δ t1 t2,
-    Γ, t1 ⊢ Δ ->
-    Γ, t2 ⊢ Δ ->
-    Γ, t1 || t2 ⊢ Δ
+    Γ,, t1 ⊢ Δ ->
+    Γ,, t2 ⊢ Δ ->
+    Γ,, t1 || t2 ⊢ Δ
 | SubDisjRight: forall Γ Δ t1 t2,
-    Γ ⊢ Δ, t1, t2 ->
-    Γ ⊢ Δ, t1 || t2
+    Γ ⊢ Δ,, t1,, t2 ->
+    Γ ⊢ Δ,, t1 || t2
 | SubSyntactic: forall Γ Δ t,
-    Γ, t ⊢ Δ, t
+    Γ,, t ⊢ Δ,, t
 | SubSubLeft: forall Γ Δ A B,
-    Γ ⊢ Δ, A ->
-    Γ, B ⊢ Δ ->
-    Γ, A <: B ⊢ Δ
+    Γ ⊢ Δ,, A ->
+    Γ,, B ⊢ Δ ->
+    Γ,, A <: B ⊢ Δ
 | SubSubRight: forall Γ Δ A B,
     (* TODO: Define Γ* *)
     (* TODO: Can has Δ* as well? *)
-    Γ(**), A ⊢ (B : type) ->
-    Γ ⊢ Δ, A <: B
+    Γ(**),, A ⊢ (B : type) ->
+    Γ ⊢ Δ,, A <: B
 | SubTop: forall Γ Δ,
-    Γ ⊢ Δ, Top
+    Γ ⊢ Δ,, Top
 | SubBottom: forall Γ Δ,
-    Γ, Bot ⊢ Δ
+    Γ,, Bot ⊢ Δ
 where "Γ ⊢ Δ" := (seq_sub Γ Δ).
 
 Local Hint Constructors seq_sub : verona.
@@ -213,55 +213,55 @@ Local Hint Extern 2 => solve_sequent : verona.
 Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
 
 Example ex_conj_elimination1 : forall Γ Δ a b cls als,
-    cls; als // Γ, a && b .⊢ Δ, a.
+    cls; als // Γ,, a && b .⊢ Δ,, a.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_conj_elimination2 : forall Γ Δ a b cls als,
-    cls; als // Γ, a && b .⊢ Δ, b.
+    cls; als // Γ,, a && b .⊢ Δ,, b.
 Proof.
     auto with verona.
 Qed.
 
 Example ex_conj_introduction : forall Γ Δ a b cls als,
-    cls; als // Γ, a, b .⊢ Δ, a && b.
+    cls; als // Γ,, a,, b .⊢ Δ,, a && b.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_disj_introduction1 : forall Γ Δ a b cls als,
-    cls; als // Γ, a .⊢ Δ, a || b.
+    cls; als // Γ,, a .⊢ Δ,, a || b.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_disj_introduction2 : forall Γ Δ a b cls als,
-    cls; als // Γ, b .⊢ Δ, a || b.
+    cls; als // Γ,, b .⊢ Δ,, a || b.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_disj_elimination : forall Γ Δ a b cls als,
-    cls; als // Γ, a || b .⊢ Δ, a, b.
+    cls; als // Γ,, a || b .⊢ Δ,, a,, b.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_deep_ex_falso : forall Γ Δ a b c d e cls als,
-    cls; als // Γ, Bot, a, b, c, d, e .⊢ Δ.
+    cls; als // Γ,, Bot,, a,, b,, c,, d,, e .⊢ Δ.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_deep_tauto : forall Γ Δ a b c d e cls als,
-    cls; als // Γ .⊢ Δ, Top, a, b, c, d, e.
+    cls; als // Γ .⊢ Δ,, Top,, a,, b,, c,, d,, e.
 Proof.
   auto with verona.
 Qed.
 
 Example ex_sub_trans : forall Γ Δ a b c cls als,
-    cls; als // Γ, a <: b, b <: c .⊢ Δ, a <: c.
+    cls; als // Γ,, a <: b,, b <: c .⊢ Δ,, a <: c.
 Proof.
     intros.
     apply SubSubRight.
@@ -270,7 +270,7 @@ Proof.
 Qed.
 
 Example ex_sub_trans' : forall Γ Δ a b c cls als,
-    cls; als // Γ, a, b <: c, a <: b .⊢ Δ, a <: c.
+    cls; als // Γ,, a,, b <: c,, a <: b .⊢ Δ,, a <: c.
 Proof.
   introv.
   repeat constructors*.
