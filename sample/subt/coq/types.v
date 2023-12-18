@@ -103,10 +103,14 @@ Definition sequent := set type.
 
 Notation "Γ , t1" := (Γ \u \{ t1 }) (at level 90, left associativity).
 
+Inductive alias_table := Aliases (lals: list (nat * type)).
+Inductive class_table := Classes (lcls: list (nat * type)).
+
 Definition type2sequent (t: type) : sequent := \{ t }.
 Coercion type2sequent : type >-> sequent.
 Reserved Notation "Γ ⊢ Δ" (at level 95).
-Inductive seq_sub : sequent -> sequent -> Prop :=
+Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
+    sequent -> sequent -> Prop :=
 | SubConjLeft: forall (Γ Δ:sequent) (t1 t2:type),
     Γ, t1, t2 ⊢ Δ ->
     Γ, t1 && t2 ⊢ Δ
@@ -138,12 +142,14 @@ Inductive seq_sub : sequent -> sequent -> Prop :=
     Γ, Bot ⊢ Δ
 where "Γ ⊢ Δ" := (seq_sub Γ Δ).
 
+Notation "{{ cls ; als ; Γ ⊢ Δ }}" := (@seq_sub cls als Γ Δ) (at level 39).
+
 Local Hint Constructors seq_sub : verona.
 
-Lemma sub_exact_in : forall a Γ Δ,
-    a \in (Γ: set type) ->
-    a \in (Δ: set type) ->
-    Γ ⊢ Δ.
+Lemma sub_exact_in : forall a Γ Δ (cls:class_table) (als:alias_table),
+    (a \in (Γ: set type)) ->
+    (a \in (Δ: set type)) ->
+    @seq_sub cls als Γ Δ.
 Proof.
   introv Hinl Hinr.
   apply eq_union_single_remove_one in Hinl.
