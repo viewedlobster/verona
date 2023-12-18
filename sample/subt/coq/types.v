@@ -1,6 +1,7 @@
 (* types for verona *)
 
 From TLC Require Import LibSet LibTactics.
+From Coq Require Import List.
 
 (* Module Verona. *)
 Declare Scope verona_type_scope.
@@ -36,9 +37,8 @@ Inductive type : Type :=
 | TClass: class_name -> list type -> type
 | TAlias: alias_name -> list type -> type
 | TTrait:
-    trait_name ->
     method_name ->
-    list var_name -> (*method type start*)
+    var_name -> (*method type start*)
     list type ->
     type ->
     type -> (*method type end*)
@@ -55,56 +55,66 @@ Notation "t1 && t2" := (TConj t1 t2).
 Notation "t1 || t2" := (TDisj t1 t2).
 Notation "c [ ts ]" := (TClass c ts).
 Notation "a [ ts ]" := (TAlias a ts).
-Notation "τ <{ f : [ Xs ] ts : t1 'where' t2 }>" :=
-    (TTrait τ f Xs ts t1 t2) (at level 80).
+Notation "'{' f '.:' '[' Xs ']' ts '.:' t1 'where' t2 '}'" :=
+    (TTrait f Xs ts t1 t2) (at level 80).
 
 Notation "'Self'" := (TSelf).
 Notation "'Top'" := (TTop).
 Notation "'Bot'" := (TBot).
 Notation "t1 <: t2" := (TSub t1 t2) (at level 50).
 
-(*
-alias_lookup(α, t...) = A[X...]
-Γ, A[t.../X...] ⊢ Δ
----- [alias-left]
-Γ, α[t...] ⊢ Δ
-
-
-alias_lookup(α) = A[X...]
-Γ ⊢ Δ, A[t.../X...]
----- [alias-right]
-Γ ⊢ Δ, α[t...]
-
-
-class_lookup(c) = A, X... // A has holes with X...
-Γ, Self <: c[t...], c[t...] <: Self, A[t.../X...] ⊢ Δ
----- [cls-left]
-Γ, c[t...] ⊢ Δ
-// what are the ramifications of having one single Self?
-
-
-// type JSON example needs assumption that c[t...] <: c[t'...]
-∀i. Γ, c[t...] <: c[t'...] ⊢ Δ, (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
----- [cls-right]
-Γ, c[t...] ⊢ Δ, c[t'...]
-
-
-// up to renaming of parameters X...
-Γ, τ{ ... } <: σ{ ... } ⊢ s'' <: t''
-∀j.   Γ, τ{ ... } <: σ{ ... }, s'' ⊢ sⱼ <: tⱼ
-Γ, τ{ ... } <: σ{ ... }, s'' ⊢ t' <: s'
----- [method]
-Γ, τ{ f : [X...] t... -> t' where t''} ⊢ Δ, σ{ f : [X...] s... -> s' where s'' }
-// TODO write example to illustrate this rule
-*)
-
 Open Scope verona_type_scope.
 Definition sequent := set type.
 
-Notation "Γ , t1" := (Γ \u \{ t1 }) (at level 90, left associativity).
+Notation "Γ ,, t1" := (Γ \u \{ t1 }) (at level 90, left associativity).
 
 Inductive alias_table := Aliases (lals: list (nat * type)).
 Inductive class_table := Classes (lcls: list (nat * type)).
+
+Definition class_lookup cls c := match cls with
+| Classes (lcls) => List.nth_error lcls c
+end.
+Definition alias_lookup als a := match als with
+| Aliases (lals) => List.nth_error lals a
+end.
+
+Check { 1 .: [1] ((TVar 1)::nil) .: (TVar 1) where Top }.
+Inductive wf_type (cls: class_table) (als: alias_table) (mvar: var_name):
+    type -> Prop :=
+    | WFTDisj: forall t1 t2,
+        wf_type cls als mvar t1 ->
+        wf_type cls als mvar t2 ->
+        wf_type cls als mvar (t1 || t2)
+    | WFTConj: forall t1 t2,
+        wf_type cls als mvar t1 ->
+        wf_type cls als mvar t2 ->
+        wf_type cls als mvar (t1 && t2)
+    | WFTClass: forall c ts n tpe,
+        class_lookup cls c = Some (n, tpe) ->
+        length ts = n ->
+        Forall (fun t => wf_type cls als mvar t) ts ->
+        wf_type cls als mvar (TClass c ts)
+    | WFTAlias: forall a ts n tpe,
+        alias_lookup als a = Some (n, tpe) ->
+        length ts = n ->
+        Forall (fun t => wf_type cls als mvar t) ts ->
+        wf_type cls als mvar (TAlias a ts)
+    | WFTTrait: forall mname mvar_tr ts t tcond,
+        Forall (fun t => wf_type cls als (mvar + mvar_tr) t) ts ->
+        wf_type cls als (mvar + mvar_tr) t ->
+        wf_type cls als (mvar + mvar_tr) tcond -> (* do we need syntax-check on tcond? *)
+        wf_type cls als mvar ({ mname .: [ mvar_tr ] ts .: t where tcond })
+    | WFTVar: forall vname,
+        vname < mvar ->
+        wf_type cls als mvar (TVar vname)
+    | WFTSelf: wf_type cls als mvar Self (* Do we need additional checks? *)
+    | WFTTop: wf_type cls als mvar Top
+    | WFTBot: wf_type cls als mvar Bot
+    | WFTSub: forall t1 t2,
+        wf_type cls als mvar t1 ->
+        wf_type cls als mvar t2 ->
+        wf_type cls als mvar (t1 <: t2)
+.
 
 Definition type2sequent (t: type) : sequent := \{ t }.
 Coercion type2sequent : type >-> sequent.
