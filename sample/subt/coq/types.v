@@ -132,6 +132,22 @@ Inductive wf_type (cls: class_table) (als: alias_table) (mvar: var_name):
         wf_type cls als mvar (t1 <: t2)
 .
 
+Definition Forall_classes (pred : nat -> type -> Prop) (cls: class_table) :=
+match cls with
+| Classes (lcls) => Forall (fun (cls: nat * type) => pred (fst cls) (snd cls)) lcls
+end.
+
+Definition Forall_aliases (pred : nat -> type -> Prop) (cls: alias_table) :=
+match cls with
+| Aliases (lals) => Forall (fun (als: nat * type) => pred (fst als) (snd als)) lals
+end.
+
+Definition wf_classes (cls : class_table) (als: alias_table) :=
+    Forall_classes (wf_type cls als) cls /\ Forall_aliases (wf_type cls als) als.
+
+Definition type2sequent (t: type) : sequent := \{ t }.
+Coercion type2sequent : type >-> sequent.
+
 Reserved Notation "Γ ⊢ Δ" (at level 95).
 Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
     sequent -> sequent -> Prop :=
