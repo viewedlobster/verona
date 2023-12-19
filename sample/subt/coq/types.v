@@ -68,6 +68,22 @@ Definition sequent := set type.
 
 Notation "Γ ,, t1" := (Γ \u \{ t1 }) (at level 51, left associativity).
 
+Definition type2sequent (t: type) : sequent := \{ t }.
+Coercion type2sequent : type >-> sequent.
+
+Local Hint Extern 1 => set_prove : verona.
+
+Lemma sequent_dup : forall A Γ,
+    A \in (Γ: set type) ->
+    Γ = (Γ,, A).
+Proof.
+  introv Hin.
+  rewrite set_in_extens_eq. intros B.
+  splits*.
+  introv HIn'. rewrite set_in_union_eq in HIn'.
+  destruct* HIn'.
+Qed.
+
 Inductive alias_table := Aliases (lals: list (nat * type)).
 Inductive class_table := Classes (lcls: list (nat * type)).
 
@@ -115,9 +131,6 @@ Inductive wf_type (cls: class_table) (als: alias_table) (mvar: var_name):
         wf_type cls als mvar t2 ->
         wf_type cls als mvar (t1 <: t2)
 .
-
-Definition type2sequent (t: type) : sequent := \{ t }.
-Coercion type2sequent : type >-> sequent.
 
 Reserved Notation "Γ ⊢ Δ" (at level 95).
 Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
@@ -169,15 +182,21 @@ Proof.
   rewrite Hinl. rewrite* Hinr.
 Qed.
 
+Lemma sub_singleton_right : forall (A : type) Γ cls als,
+    A \in (Γ: set type) ->
+    cls; als // Γ .⊢ A.
+Proof.
+  introv Hin. apply* sub_exact_in.
+Qed.
+
 Lemma sub_sub_in_left : forall A B Γ Δ cls als,
     (A <: B) \in (Γ: set type) ->
-    cls; als // Γ \-- (A <: B) .⊢ Δ,, A ->
-    cls; als // Γ \-- (A <: B),, B .⊢ Δ ->
+    cls; als // Γ .⊢ Δ,, A ->
+    cls; als // Γ,, B .⊢ Δ ->
     cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinl H1 H2.
-  apply eq_union_single_remove_one in Hinl.
-  rewrite union_comm in Hinl.
+  apply sequent_dup in Hinl.
   rewrite* Hinl.
 Qed.
 
@@ -187,9 +206,16 @@ Lemma sub_sub_in_right : forall A B Γ Δ cls als,
     cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinr H1.
-  apply eq_union_single_remove_one in Hinr.
-  rewrite union_comm in Hinr.
+  apply sequent_dup in Hinr.
   rewrite* Hinr.
+Qed.
+
+Lemma sub_sub_singleton_right : forall A B Γ cls als,
+    cls; als // Γ,, A .⊢ (B : type) ->
+    cls; als // Γ .⊢ A <: B.
+Proof.
+  introv H1.
+  apply* sub_sub_in_right. set_prove.
 Qed.
 
 Lemma sub_parts : forall Γ Δ Γ' Δ' cls als,
@@ -220,19 +246,46 @@ Proof.
 Qed.
 
 Local Hint Resolve sub_exact_in : verona.
-Local Hint Resolve sub_sub_in_left : verona.
-Local Hint Resolve sub_sub_in_right : verona.
+Local Hint Resolve sub_singleton_right : verona.
 Local Hint Resolve sub_bot_in_left : verona.
 Local Hint Resolve sub_top_in_right : verona.
-Local Hint Extern 1 => set_prove : verona.
+Local Hint Resolve sub_sub_singleton_right : verona.
 
-(* TODO: Turn into lemma, sub_singleton_right *)
-Ltac solve_singleton :=
+Ltac extract_sub_left :=
   match goal with
-  | _ : _ |- _ ⊢ (type2sequent ?A) => solve [apply (sub_exact_in A); set_prove]
-  | |- _ ⊢ (type2sequent ?A) => solve [apply (sub_exact_in A); set_prove]
+  | _ : _ |- _; _ // type2sequent (?A <: ?B),, ?t1 .⊢ _ =>
+      replace (type2sequent (A <: B),, t1 : set type) with (type2sequent t1,, A <: B : set type)
+      by set_prove; apply SubSubLeft
+  | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1 .⊢ _ =>
+      replace (Γ,, A <: B,, t1 : set type) with (Γ,, t1,, A <: B : set type)
+      by set_prove; apply SubSubLeft
+  | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1,, ?t2 .⊢ _ =>
+      replace (Γ,, A <: B,, t1,, t2 : set type) with (Γ,, t1,, t2,, A <: B : set type)
+      by set_prove; apply SubSubLeft
+  | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 .⊢ _ =>
+      replace (Γ,, A <: B,, t1,, t2,, t3 : set type) with (Γ,, t1,, t2,, t3,, A <: B : set type)
+      by set_prove; apply SubSubLeft
   end.
-Local Hint Extern 1 => solve_singleton : verona.
+Local Hint Extern 2 => extract_sub_left : verona.
+
+Ltac extract_sub_right :=
+  match goal with
+  | _ : _ |- _; _ // _ .⊢ type2sequent (?A <: ?B) =>
+      apply sub_sub_singleton_right
+  | _ : _ |- _; _ // _ .⊢ type2sequent (?A <: ?B),, ?t1 =>
+      replace (type2sequent (A <: B),, t1 : set type) with (type2sequent t1,, A <: B : set type)
+      by set_prove; apply SubSubRight
+  | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1 =>
+      replace (Δ,, A <: B,, t1 : set type) with (Δ,, A <: B,, t1 : set type)
+      by set_prove; apply SubSubRight
+  | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2 =>
+      replace (Δ,, A <: B,, t1,, t2 : set type) with (Δ,, A <: B,, t1,, t2 : set type)
+      by set_prove; apply SubSubRight
+  | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 =>
+      replace (Δ,, A <: B,, t1,, t2,, t3 : set type) with (Δ,, A <: B,, t1,, t2,, t3 : set type)
+      by set_prove; apply SubSubRight
+  end.
+Local Hint Extern 1 => extract_sub_right : verona.
 
 Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
 
@@ -290,15 +343,53 @@ Qed.
 Example ex_sub_trans : forall Γ Δ a b c cls als,
     cls; als // Γ,, a <: b,, b <: c .⊢ Δ,, a <: c.
 Proof.
-  introv.
-  apply* sub_sub_in_right.
-  rotate_sequent*.
+  auto with verona.
 Qed.
 
 Example ex_sub_trans' : forall Γ Δ a b c cls als,
-    cls; als // Γ,, a,, b <: c,, a <: b .⊢ Δ,, a <: c.
+    cls; als // Γ,, b <: c,, a <: b .⊢ Δ,, a <: c.
 Proof.
-  introv.
-  constructors*.
-  rotate_sequent*.
+  auto with verona.
+Qed.
+
+Example ex_sub_trans_twice : forall Γ Δ a b c d cls als,
+    cls; als // Γ,, a <: b,, b <: c,, c <: d .⊢ Δ,, a <: d.
+Proof.
+  auto with verona.
+Qed.
+
+Example ex_sub_trans_twice' : forall Γ Δ a b c d cls als,
+    cls; als // Γ,, c <: d,, b <: c,, a <: b .⊢ Δ,, a <: d.
+Proof.
+  eauto 6 with verona.
+Qed.
+
+Example ex_sub_trans_thrice : forall Γ Δ a b c d e cls als,
+    cls; als // Γ,, a <: b,, b <: c,, c <: d,, d <: e .⊢ Δ,, a <: e.
+Proof.
+  auto 6 with verona.
+Qed.
+
+Example ex_sub_trans_no_context_right : forall Γ a b c cls als,
+    cls; als // Γ,, a <: b,, b <: c .⊢ a <: c.
+Proof.
+  auto with verona.
+Qed.
+
+Example ex_sub_trans_no_context_left : forall Δ a b c cls als,
+    cls; als // type2sequent (a <: b),, b <: c .⊢ Δ,, a <: c.
+Proof.
+  eauto 6 with verona.
+Qed.
+
+Example ex_sub_trans_no_context : forall a b c cls als,
+    cls; als // type2sequent (a <: b),, b <: c .⊢ a <: c.
+Proof.
+  eauto 6 with verona.
+Qed.
+
+Example ex_sub_red_herring : forall Γ Δ a b c cls als,
+    cls; als // Γ,, a,, b <: c .⊢ Δ,, a,, c <: b.
+Proof.
+  eauto with verona.
 Qed.
