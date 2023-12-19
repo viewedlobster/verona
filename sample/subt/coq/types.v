@@ -377,7 +377,7 @@ Qed.
 Example ex_sub_trans_twice' : forall Γ Δ a b c d cls als,
     cls; als // Γ,, c <: d,, b <: c,, a <: b .⊢ Δ,, a <: d.
 Proof.
-  eauto 6 with verona.
+  auto 6 with verona.
 Qed.
 
 Example ex_sub_trans_thrice : forall Γ Δ a b c d e cls als,
