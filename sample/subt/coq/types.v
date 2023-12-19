@@ -4,7 +4,6 @@ From TLC Require Import LibSet LibTactics.
 From Coq Require Import List.
 
 (* Module Verona. *)
-Declare Scope verona_type_scope.
 
 Ltac auto_tilde ::= try solve [auto with verona | intuition auto].
 Ltac auto_star ::= try solve [eauto with verona | intuition eauto].
@@ -63,13 +62,28 @@ Notation "'Top'" := (TTop).
 Notation "'Bot'" := (TBot).
 Notation "t1 <: t2" := (TSub t1 t2) (at level 50).
 
-Open Scope verona_type_scope.
-Definition sequent := set type.
+(************)
+(* Sequents *)
+(************)
 
-Notation "Γ ,, t1" := (Γ \u \{ t1 }) (at level 51, left associativity).
+Notation " a \u b " := (union a b).
+Notation " a \n b " := (inter a b).
+Notation " \{ a } " := (single a).
+
+Definition sequent := set type.
+Notation "Γ ,, t1" := ((Γ : set type) \u \{ t1 }) (at level 51, left associativity).
 
 Definition type2sequent (t: type) : sequent := \{ t }.
 Coercion type2sequent : type >-> sequent.
+
+(* TODO: This is too conservative. Can also have conjunctions of
+constraints, aliases that define constraints, etc. *)
+Inductive is_boxed: type -> Prop :=
+| BoxedSub : forall t1 t2, is_boxed (t1 <: t2).
+
+Local Hint Constructors is_boxed : verona.
+
+Notation "[[ Γ ]]" := ((Γ : set type) \n is_boxed).
 
 Local Hint Extern 1 => set_prove : verona.
 
@@ -84,73 +98,84 @@ Proof.
   destruct* HIn'.
 Qed.
 
+(**********)
+(* Tables *)
+(**********)
+
 Inductive alias_table := Aliases (lals: list (nat * type)).
 Inductive class_table := Classes (lcls: list (nat * type)).
 
-Definition class_lookup cls c := match cls with
-| Classes (lcls) => List.nth_error lcls c
-end.
-Definition alias_lookup als a := match als with
-| Aliases (lals) => List.nth_error lals a
-end.
+Definition class_lookup cls c :=
+  match cls with
+  | Classes (lcls) => List.nth_error lcls c
+  end.
 
-Check { 1 .: [1] ((TVar 1)::nil) .: (TVar 1) where Top }.
+Definition alias_lookup als a :=
+  match als with
+  | Aliases (lals) => List.nth_error lals a
+  end.
+
+(*********************)
+(* Well-formed types *)
+(*********************)
+
 Inductive wf_type (cls: class_table) (als: alias_table) (mvar: var_name):
-    type -> Prop :=
-    | WFTDisj: forall t1 t2,
-        wf_type cls als mvar t1 ->
-        wf_type cls als mvar t2 ->
-        wf_type cls als mvar (t1 || t2)
-    | WFTConj: forall t1 t2,
-        wf_type cls als mvar t1 ->
-        wf_type cls als mvar t2 ->
-        wf_type cls als mvar (t1 && t2)
-    | WFTClass: forall c ts n tpe,
-        class_lookup cls c = Some (n, tpe) ->
-        length ts = n ->
-        Forall (fun t => wf_type cls als mvar t) ts ->
-        wf_type cls als mvar (TClass c ts)
-    | WFTAlias: forall a ts n tpe,
-        alias_lookup als a = Some (n, tpe) ->
-        length ts = n ->
-        Forall (fun t => wf_type cls als mvar t) ts ->
-        wf_type cls als mvar (TAlias a ts)
-    | WFTTrait: forall mname mvar_tr ts t tcond,
-        Forall (fun t => wf_type cls als (mvar + mvar_tr) t) ts ->
-        wf_type cls als (mvar + mvar_tr) t ->
-        wf_type cls als (mvar + mvar_tr) tcond -> (* do we need syntax-check on tcond? *)
-        wf_type cls als mvar ({ mname .: [ mvar_tr ] ts .: t where tcond })
-    | WFTVar: forall vname,
-        vname < mvar ->
-        wf_type cls als mvar (TVar vname)
-    | WFTSelf: wf_type cls als mvar Self (* Do we need additional checks? *)
-    | WFTTop: wf_type cls als mvar Top
-    | WFTBot: wf_type cls als mvar Bot
-    | WFTSub: forall t1 t2,
-        wf_type cls als mvar t1 ->
-        wf_type cls als mvar t2 ->
-        wf_type cls als mvar (t1 <: t2)
+  type -> Prop :=
+| WFTDisj: forall t1 t2,
+    wf_type cls als mvar t1 ->
+    wf_type cls als mvar t2 ->
+    wf_type cls als mvar (t1 || t2)
+| WFTConj: forall t1 t2,
+    wf_type cls als mvar t1 ->
+    wf_type cls als mvar t2 ->
+    wf_type cls als mvar (t1 && t2)
+| WFTClass: forall c ts n tpe,
+    class_lookup cls c = Some (n, tpe) ->
+    length ts = n ->
+    Forall (fun t => wf_type cls als mvar t) ts ->
+    wf_type cls als mvar (TClass c ts)
+| WFTAlias: forall a ts n tpe,
+    alias_lookup als a = Some (n, tpe) ->
+    length ts = n ->
+    Forall (fun t => wf_type cls als mvar t) ts ->
+    wf_type cls als mvar (TAlias a ts)
+| WFTTrait: forall mname mvar_tr ts t tcond,
+    Forall (fun t => wf_type cls als (mvar + mvar_tr) t) ts ->
+    wf_type cls als (mvar + mvar_tr) t ->
+    wf_type cls als (mvar + mvar_tr) tcond -> (* do we need syntax-check on tcond? *)
+    wf_type cls als mvar ({ mname .: [ mvar_tr ] ts .: t where tcond })
+| WFTVar: forall vname,
+    vname < mvar ->
+    wf_type cls als mvar (TVar vname)
+| WFTSelf: wf_type cls als mvar Self (* Do we need additional checks? *)
+| WFTTop: wf_type cls als mvar Top
+| WFTBot: wf_type cls als mvar Bot
+| WFTSub: forall t1 t2,
+    wf_type cls als mvar t1 ->
+    wf_type cls als mvar t2 ->
+    wf_type cls als mvar (t1 <: t2)
 .
 
-Definition Forall_classes (pred : nat -> type -> Prop) (cls: class_table) :=
-match cls with
-| Classes (lcls) => Forall (fun (cls: nat * type) => pred (fst cls) (snd cls)) lcls
-end.
+Definition Forall_classes (pred : nat -> type -> Prop) (tbl: class_table) :=
+  match tbl with
+  | Classes lcls => Forall (fun cls => pred (fst cls) (snd cls)) lcls
+  end.
 
-Definition Forall_aliases (pred : nat -> type -> Prop) (cls: alias_table) :=
-match cls with
-| Aliases (lals) => Forall (fun (als: nat * type) => pred (fst als) (snd als)) lals
-end.
+Definition Forall_aliases (pred : nat -> type -> Prop) (tbl: alias_table) :=
+  match tbl with
+  | Aliases lals => Forall (fun als => pred (fst als) (snd als)) lals
+  end.
 
-Definition wf_classes (cls : class_table) (als: alias_table) :=
-    Forall_classes (wf_type cls als) cls /\ Forall_aliases (wf_type cls als) als.
+Definition wf_tables (cls : class_table) (als: alias_table) :=
+  Forall_classes (wf_type cls als) cls /\ Forall_aliases (wf_type cls als) als.
 
-Definition type2sequent (t: type) : sequent := \{ t }.
-Coercion type2sequent : type >-> sequent.
+(*******************)
+(* Subtyping rules *)
+(*******************)
 
 Reserved Notation "Γ ⊢ Δ" (at level 95).
 Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
-    sequent -> sequent -> Prop :=
+  sequent -> sequent -> Prop :=
 | SubConjLeft: forall (Γ Δ:sequent) (t1 t2:type),
     Γ,, t1,, t2 ⊢ Δ ->
     Γ,, t1 && t2 ⊢ Δ
@@ -172,9 +197,8 @@ Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
     Γ,, B ⊢ Δ ->
     Γ,, A <: B ⊢ Δ
 | SubSubRight: forall Γ Δ A B,
-    (* TODO: Define Γ* *)
-    (* TODO: Can has Δ* as well? *)
-    Γ(**),, A ⊢ (B : type) ->
+    (* TODO: Can has [[Δ]] as well? *)
+    [[Γ]],, A ⊢ (B : type) ->
     Γ ⊢ Δ,, A <: B
 | SubTop: forall Γ Δ,
     Γ ⊢ Δ,, Top
@@ -185,6 +209,10 @@ where "Γ ⊢ Δ" := (seq_sub Γ Δ).
 Local Hint Constructors seq_sub : verona.
 
 Notation "cls ; als // Γ .⊢ Δ" := (@seq_sub cls als Γ Δ) (at level 95).
+
+(**************)
+(* Automation *)
+(**************)
 
 Lemma sub_exact_in : forall A Γ Δ cls als,
     A \in (Γ: set type) ->
@@ -218,7 +246,7 @@ Qed.
 
 Lemma sub_sub_in_right : forall A B Γ Δ cls als,
     (A <: B) \in (Δ: set type) ->
-    cls; als // Γ,, A .⊢ B ->
+    cls; als // [[Γ]],, A .⊢ B ->
     cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinr H1.
@@ -227,7 +255,7 @@ Proof.
 Qed.
 
 Lemma sub_sub_singleton_right : forall A B Γ cls als,
-    cls; als // Γ,, A .⊢ (B : type) ->
+    cls; als // [[Γ]],, A .⊢ (B : type) ->
     cls; als // Γ .⊢ A <: B.
 Proof.
   introv H1.
@@ -267,19 +295,21 @@ Local Hint Resolve sub_bot_in_left : verona.
 Local Hint Resolve sub_top_in_right : verona.
 Local Hint Resolve sub_sub_singleton_right : verona.
 
+Set Warnings "-cast-in-pattern".
+
 Ltac extract_sub_left :=
   match goal with
   | _ : _ |- _; _ // type2sequent (?A <: ?B),, ?t1 .⊢ _ =>
-      replace (type2sequent (A <: B),, t1 : set type) with (type2sequent t1,, A <: B : set type)
+      replace (type2sequent (A <: B),, t1) with (type2sequent t1,, A <: B)
       by set_prove; apply SubSubLeft
   | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1 .⊢ _ =>
-      replace (Γ,, A <: B,, t1 : set type) with (Γ,, t1,, A <: B : set type)
+      replace (Γ,, A <: B,, t1) with (Γ,, t1,, A <: B)
       by set_prove; apply SubSubLeft
   | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1,, ?t2 .⊢ _ =>
-      replace (Γ,, A <: B,, t1,, t2 : set type) with (Γ,, t1,, t2,, A <: B : set type)
+      replace (Γ,, A <: B,, t1,, t2) with (Γ,, t1,, t2,, A <: B)
       by set_prove; apply SubSubLeft
   | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 .⊢ _ =>
-      replace (Γ,, A <: B,, t1,, t2,, t3 : set type) with (Γ,, t1,, t2,, t3,, A <: B : set type)
+      replace (Γ,, A <: B,, t1,, t2,, t3) with (Γ,, t1,, t2,, t3,, A <: B)
       by set_prove; apply SubSubLeft
   end.
 Local Hint Extern 2 => extract_sub_left : verona.
@@ -289,24 +319,59 @@ Ltac extract_sub_right :=
   | _ : _ |- _; _ // _ .⊢ type2sequent (?A <: ?B) =>
       apply sub_sub_singleton_right
   | _ : _ |- _; _ // _ .⊢ type2sequent (?A <: ?B),, ?t1 =>
-      replace (type2sequent (A <: B),, t1 : set type) with (type2sequent t1,, A <: B : set type)
+      replace (type2sequent (A <: B),, t1) with (type2sequent t1,, A <: B)
       by set_prove; apply SubSubRight
   | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1 =>
-      replace (Δ,, A <: B,, t1 : set type) with (Δ,, A <: B,, t1 : set type)
+      replace (Δ,, A <: B,, t1) with (Δ,, A <: B,, t1)
       by set_prove; apply SubSubRight
   | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2 =>
-      replace (Δ,, A <: B,, t1,, t2 : set type) with (Δ,, A <: B,, t1,, t2 : set type)
+      replace (Δ,, A <: B,, t1,, t2) with (Δ,, A <: B,, t1,, t2)
       by set_prove; apply SubSubRight
   | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 =>
-      replace (Δ,, A <: B,, t1,, t2,, t3 : set type) with (Δ,, A <: B,, t1,, t2,, t3 : set type)
+      replace (Δ,, A <: B,, t1,, t2,, t3) with (Δ,, A <: B,, t1,, t2,, t3)
       by set_prove; apply SubSubRight
   end.
 Local Hint Extern 1 => extract_sub_right : verona.
+
+Lemma push_filter : forall Γ a b,
+    [[Γ,, a <: b]] = [[Γ]],, a <: b.
+Proof.
+  introv. rewrite set_in_extens_eq.
+  intros t. splits*.
+  introv Hin. apply in_union_inv in Hin.
+  inverts Hin as Hin; auto_star.
+  rewrite set_in_single_eq in Hin. subst.
+  apply in_inter; auto_star.
+  constructors.
+Qed.
+
+Lemma push_filter_singleton : forall a b,
+    [[type2sequent (a <: b)]] = type2sequent (a <: b).
+Proof.
+  introv. rewrite set_in_extens_eq.
+  intros t. splits*.
+  introv Hin.
+  rewrite set_in_single_eq in Hin. subst.
+  apply in_inter; auto_star.
+  constructors.
+Qed.
+
+Ltac push_filter :=
+  match goal with
+  | _ : _ |- context[ [[_,, _ <: _]] ] => rewrite push_filter; extract_sub_left
+  | _ : _ |- context[ [[type2sequent (_ <: _)]] ] => rewrite push_filter_singleton; extract_sub_left
+  end.
+
+Local Hint Extern 1 => push_filter : verona.
 
 Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
 
 Tactic Notation "rotate_sequent*" := rotate_sequent; auto_star.
 Tactic Notation "rotate_sequent~" := rotate_sequent; auto_tilde.
+
+(************)
+(* Examples *)
+(************)
 
 Example ex_conj_elimination1 : forall Γ Δ a b cls als,
     cls; als // Γ,, a && b .⊢ Δ,, a.
@@ -383,13 +448,13 @@ Qed.
 Example ex_sub_trans_thrice : forall Γ Δ a b c d e cls als,
     cls; als // Γ,, a <: b,, b <: c,, c <: d,, d <: e .⊢ Δ,, a <: e.
 Proof.
-  auto 6 with verona.
+  auto 7 with verona.
 Qed.
 
 Example ex_sub_trans_no_context_right : forall Γ a b c cls als,
     cls; als // Γ,, a <: b,, b <: c .⊢ a <: c.
 Proof.
-  auto with verona.
+  auto 6 with verona.
 Qed.
 
 Example ex_sub_trans_no_context_left : forall Δ a b c cls als,
