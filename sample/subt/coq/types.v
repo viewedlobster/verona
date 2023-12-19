@@ -66,7 +66,7 @@ Notation "t1 <: t2" := (TSub t1 t2) (at level 50).
 Open Scope verona_type_scope.
 Definition sequent := set type.
 
-Notation "Γ ,, t1" := (Γ \u \{ t1 }) (at level 90, left associativity).
+Notation "Γ ,, t1" := (Γ \u \{ t1 }) (at level 51, left associativity).
 
 Inductive alias_table := Aliases (lals: list (nat * type)).
 Inductive class_table := Classes (lcls: list (nat * type)).
@@ -171,8 +171,8 @@ Qed.
 
 Lemma sub_sub_in_left : forall A B Γ Δ cls als,
     (A <: B) \in (Γ: set type) ->
-    cls; als // Γ \-- (A <: B) .⊢ Δ, A ->
-    cls; als // Γ \-- (A <: B), B .⊢ Δ ->
+    cls; als // Γ \-- (A <: B) .⊢ Δ,, A ->
+    cls; als // Γ \-- (A <: B),, B .⊢ Δ ->
     cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinl H1 H2.
@@ -183,7 +183,7 @@ Qed.
 
 Lemma sub_sub_in_right : forall A B Γ Δ cls als,
     (A <: B) \in (Δ: set type) ->
-    cls; als // Γ, A .⊢ B ->
+    cls; als // Γ,, A .⊢ B ->
     cls; als // Γ .⊢ Δ.
 Proof.
   introv Hinr H1.
