@@ -206,10 +206,12 @@ alias_lookup(α) = A[X...]
 
 
 class_lookup(c) = A, X... // A has holes with X...
-Γ, Self <: c[t...], c[t...] <: Self, A[t.../X...] ⊢ Δ
+i fresh
+Γ, Selfᵢ <: c[t...], c[t...] <: Selfᵢ, A[Selfᵢ/Self][t.../X...] ⊢ Δ[Selfᵢ/Self]
 ---- [cls-left]
 Γ, c[t...] ⊢ Δ
 // what are the ramifications of having one single Self?
+// TODO write example with complicated Self types
 
 
 // type JSON example needs assumption that c[t...] <: c[t'...]
