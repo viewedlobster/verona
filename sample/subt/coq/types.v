@@ -30,6 +30,7 @@ Definition trait_name := nat.
 Definition method_name := nat.
 Definition var_name := nat.
 
+(* TODO maybe change name to vtype or something.... ? *)
 Inductive type : Type :=
 | TDisj: type -> type -> type
 | TConj: type -> type -> type
@@ -37,10 +38,10 @@ Inductive type : Type :=
 | TAlias: alias_name -> list type -> type
 | TTrait:
     method_name ->
-    var_name -> (*method type start*)
-    list type ->
-    type ->
-    type -> (*method type end*)
+    var_name -> (* number of type parameters, TODO: make this clear... *) (*method type start*)
+    list type -> (* argument types *)
+    type -> (* return type *)
+    type -> (* where type constraint *)    (*method type end*)
     type
 | TVar: var_name -> type
 | TSelf: type
@@ -70,8 +71,9 @@ Notation " a \u b " := (union a b).
 Notation " a \n b " := (inter a b).
 Notation " \{ a } " := (single a).
 
+(* TODO: change name "sequent" to something else *)
 Definition sequent := set type.
-Notation "Γ ,, t1" := ((Γ : set type) \u \{ t1 }) (at level 51, left associativity).
+Notation "Γ1 ,, Γ2" := ((Γ1 : set type) \u (Γ1 : set type)) (at level 51, left associativity).
 
 Definition type2sequent (t: type) : sequent := \{ t }.
 Coercion type2sequent : type >-> sequent.
@@ -94,8 +96,6 @@ Proof.
   introv Hin.
   rewrite set_in_extens_eq. intros B.
   splits*.
-  introv HIn'. rewrite set_in_union_eq in HIn'.
-  destruct* HIn'.
 Qed.
 
 (**********)
@@ -173,93 +173,93 @@ Definition wf_tables (cls : class_table) (als: alias_table) :=
 (* Subtyping rules *)
 (*******************)
 
-Reserved Notation "Γ ⊢ Δ" (at level 95).
+Reserved Notation "Π ; Γ ⊢ Δ" (at level 95).
 Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
-  sequent -> sequent -> Prop :=
-| SubConjLeft: forall (Γ Δ:sequent) (t1 t2:type),
-    Γ,, t1,, t2 ⊢ Δ ->
-    Γ,, t1 && t2 ⊢ Δ
-| SubConjRight: forall Γ Δ t1 t2,
-    Γ ⊢ Δ,, t1 ->
-    Γ ⊢ Δ,, t2 ->
-    Γ ⊢ Δ,, t1 && t2
-| SubDisjLeft: forall Γ Δ t1 t2,
-    Γ,, t1 ⊢ Δ ->
-    Γ,, t2 ⊢ Δ ->
-    Γ,, t1 || t2 ⊢ Δ
-| SubDisjRight: forall Γ Δ t1 t2,
-    Γ ⊢ Δ,, t1,, t2 ->
-    Γ ⊢ Δ,, t1 || t2
-| SubSyntactic: forall Γ Δ t,
-    Γ,, t ⊢ Δ,, t
-| SubSubLeft: forall Γ Δ A B,
-    Γ ⊢ Δ,, A ->
-    Γ,, B ⊢ Δ ->
-    Γ,, A <: B ⊢ Δ
-| SubSubRight: forall Γ Δ A B,
-    (* TODO: Can has [[Δ]] as well? *)
-    [[Γ]],, A ⊢ (B : type) ->
-    Γ ⊢ Δ,, A <: B
-| SubTop: forall Γ Δ,
-    Γ ⊢ Δ,, Top
-| SubBottom: forall Γ Δ,
-    Γ,, Bot ⊢ Δ
-where "Γ ⊢ Δ" := (seq_sub Γ Δ).
+  type -> sequent -> sequent -> Prop :=
+| SubConjLeft: forall (Π : type) (Γ Δ:sequent) (t1 t2:type),
+    Π; Γ,, t1,, t2 ⊢ Δ ->
+    Π; Γ,, t1 && t2 ⊢ Δ
+| SubConjRight: forall Π Γ Δ (t1 t2 : type),
+    Π; Γ ⊢ Δ,, t1 ->
+    Π; Γ ⊢ Δ,, t2 ->
+    Π; Γ ⊢ Δ,, t1 && t2
+| SubDisjLeft: forall Π Γ Δ (t1 t2 : type),
+    Π; Γ,, t1 ⊢ Δ ->
+    Π; Γ,, t2 ⊢ Δ ->
+    Π; Γ,, t1 || t2 ⊢ Δ
+| SubDisjRight: forall Π Γ Δ (t1 t2 : type),
+    Π; Γ ⊢ Δ,, t1,, t2 ->
+    Π; Γ ⊢ Δ,, t1 || t2
+| SubSyntactic: forall Π (Γ Δ : set type) (t : type),
+    (t \in Γ) ->
+    (t \in Δ) ->
+    Π; Γ ⊢ Δ
+| SubSubLeft: forall Π Γ Δ (A B : type),
+    Π; Γ ⊢ Δ,, A ->
+    Π; Γ,, B ⊢ Δ ->
+    Π; Γ,, A <: B ⊢ Δ
+| SubSubRight: forall Π Γ Δ (A B : type),
+    A <: B; [[Γ]],, Π,, A ⊢ (B : type) ->
+    Π; Γ ⊢ Δ,, A <: B
+| SubTop: forall Π Γ Δ,
+    Π; Γ ⊢ Δ,, Top
+| SubBottom: forall Π Γ Δ,
+    Π; Γ,, Bot ⊢ Δ
+where "Π ; Γ ⊢ Δ" := (seq_sub Π Γ Δ).
 
 Local Hint Constructors seq_sub : verona.
 
-Notation "cls ; als // Γ .⊢ Δ" := (@seq_sub cls als Γ Δ) (at level 95).
+Notation "cls ; als // Π .; Γ .⊢ Δ" := (@seq_sub cls als Π Γ Δ) (at level 95).
 
 (**************)
 (* Automation *)
 (**************)
 
-Lemma sub_exact_in : forall A Γ Δ cls als,
+Lemma sub_exact_in : forall A Π (Γ Δ : set type) cls als,
     A \in (Γ: set type) ->
     A \in (Δ: set type) ->
-    cls; als // Γ .⊢ Δ.
+    cls; als // Π .; Γ .⊢ Δ.
 Proof.
-  introv Hinl Hinr.
-  apply eq_union_single_remove_one in Hinl.
-  apply eq_union_single_remove_one in Hinr.
-  rewrite union_comm in Hinl, Hinr.
-  rewrite Hinl. rewrite* Hinr.
+  intros.
+  apply (SubSyntactic Π Γ Δ A).
+  assumption. assumption.
 Qed.
 
-Lemma sub_singleton_right : forall (A : type) Γ cls als,
+Lemma sub_singleton_right : forall (Π A : type) Γ cls als,
     A \in (Γ: set type) ->
-    cls; als // Γ .⊢ A.
+    cls; als // Π .; Γ .⊢ A.
 Proof.
   introv Hin. apply* sub_exact_in.
 Qed.
 
-Lemma sub_sub_in_left : forall A B Γ Δ cls als,
+Lemma sub_sub_in_left : forall A B Π Γ Δ cls als,
     (A <: B) \in (Γ: set type) ->
-    cls; als // Γ .⊢ Δ,, A ->
-    cls; als // Γ,, B .⊢ Δ ->
-    cls; als // Γ .⊢ Δ.
+    cls; als // Π .; Γ .⊢ Δ,, A ->
+    cls; als // Π .; Γ,, B .⊢ Δ ->
+    cls; als // Π .; Γ .⊢ Δ.
 Proof.
   introv Hinl H1 H2.
   apply sequent_dup in Hinl.
   rewrite* Hinl.
 Qed.
 
-Lemma sub_sub_in_right : forall A B Γ Δ cls als,
+Lemma sub_sub_in_right : forall A B Π Γ Δ cls als,
     (A <: B) \in (Δ: set type) ->
-    cls; als // [[Γ]],, A .⊢ B ->
-    cls; als // Γ .⊢ Δ.
+    cls; als // Π .; [[Γ]],, A .⊢ B ->
+    cls; als // Π .; Γ .⊢ Δ.
 Proof.
   introv Hinr H1.
   apply sequent_dup in Hinr.
   rewrite* Hinr.
 Qed.
 
-Lemma sub_sub_singleton_right : forall A B Γ cls als,
-    cls; als // [[Γ]],, A .⊢ (B : type) ->
-    cls; als // Γ .⊢ A <: B.
+Lemma sub_sub_singleton_right : forall A B Π Γ cls als,
+    cls; als // Π .; [[Γ]],, A .⊢ (B : type) ->
+    cls; als // Π .; Γ .⊢ A <: B.
 Proof.
   introv H1.
-  apply* sub_sub_in_right. set_prove.
+  apply* sub_sub_in_right.
+
 Qed.
 
 Lemma sub_parts : forall Γ Δ Γ' Δ' cls als,
