@@ -72,8 +72,8 @@ Notation " a \n b " := (inter a b).
 Notation " \{ a } " := (single a).
 
 (* TODO: change name "sequent" to something else *)
-Definition sequent := set type.
-Notation "Γ1 ,, Γ2" := ((Γ1 : set type) \u (Γ1 : set type)) (at level 51, left associativity).
+Notation sequent := (set type).
+Notation "Γ1 ,, Γ2" := ((Γ1 : sequent) \u (Γ2 : sequent)) (at level 51, left associativity).
 
 Definition type2sequent (t: type) : sequent := \{ t }.
 Coercion type2sequent : type >-> sequent.
@@ -89,13 +89,13 @@ Notation "[[ Γ ]]" := ((Γ : set type) \n is_boxed).
 
 Local Hint Extern 1 => set_prove : verona.
 
-Lemma sequent_dup : forall A Γ,
-    A \in (Γ: set type) ->
+Lemma sequent_dup : forall (A : type) (Γ : sequent),
+    A \in Γ ->
     Γ = (Γ,, A).
 Proof.
   introv Hin.
   rewrite set_in_extens_eq. intros B.
-  splits*.
+  splits*. introv Hin'. apply in_union_inv in Hin'. inverts* Hin'.
 Qed.
 
 (**********)
@@ -198,7 +198,7 @@ Inductive seq_sub {cls_tbl: class_table} {als_tbl: alias_table} :
     Π; Γ ⊢ Δ,, A ->
     Π; Γ,, B ⊢ Δ ->
     Π; Γ,, A <: B ⊢ Δ
-| SubSubRight: forall Π Γ Δ (A B : type),
+| SubSubRight: forall (Π : type) Γ Δ (A B : type),
     A <: B; [[Γ]],, Π,, A ⊢ (B : type) ->
     Π; Γ ⊢ Δ,, A <: B
 | SubTop: forall Π Γ Δ,
@@ -243,9 +243,9 @@ Proof.
   rewrite* Hinl.
 Qed.
 
-Lemma sub_sub_in_right : forall A B Π Γ Δ cls als,
+Lemma sub_sub_in_right : forall A B (Π : type) Γ Δ cls als,
     (A <: B) \in (Δ: set type) ->
-    cls; als // Π .; [[Γ]],, A .⊢ B ->
+    cls; als // A <: B .; [[Γ]],, Π,, A .⊢ B ->
     cls; als // Π .; Γ .⊢ Δ.
 Proof.
   introv Hinr H1.
@@ -253,25 +253,24 @@ Proof.
   rewrite* Hinr.
 Qed.
 
-Lemma sub_sub_singleton_right : forall A B Π Γ cls als,
-    cls; als // Π .; [[Γ]],, A .⊢ (B : type) ->
+Lemma sub_sub_singleton_right : forall (A B Π : type) Γ cls als,
+    cls; als // A <: B .; [[Γ]],, Π,, A .⊢ B ->
     cls; als // Π .; Γ .⊢ A <: B.
 Proof.
   introv H1.
-  apply* sub_sub_in_right.
-
+  apply* (sub_sub_in_right A B).
 Qed.
 
-Lemma sub_parts : forall Γ Δ Γ' Δ' cls als,
+Lemma sub_parts : forall Π Γ Δ Γ' Δ' cls als,
     Γ' \c Γ ->
     Δ' \c Δ ->
-    cls; als // Γ' .⊢ Δ' ->
-    cls; als // Γ .⊢ Δ.
+    cls; als // Π .; Γ' .⊢ Δ' ->
+    cls; als // Π .; Γ .⊢ Δ.
 Proof. Abort.
 
-Lemma sub_top_in_right : forall Γ Δ cls als,
+Lemma sub_top_in_right : forall Π Γ Δ cls als,
     Top \in (Δ: set type) ->
-    cls; als // Γ .⊢ Δ.
+    cls; als // Π .; Γ .⊢ Δ.
 Proof.
   introv Hin.
   apply eq_union_single_remove_one in Hin.
@@ -279,9 +278,9 @@ Proof.
   rewrite* Hin.
 Qed.
 
-Lemma sub_bot_in_left : forall Γ Δ cls als,
-    Bot \in (Γ: set type) ->
-    cls; als // Γ .⊢ Δ.
+Lemma sub_bot_in_left : forall Π Γ Δ cls als,
+    Bot \in Γ ->
+    cls; als // Π .; Γ .⊢ Δ.
 Proof.
   introv Hin.
   apply eq_union_single_remove_one in Hin.
@@ -297,6 +296,7 @@ Local Hint Resolve sub_sub_singleton_right : verona.
 
 Set Warnings "-cast-in-pattern".
 
+(* TODO: Update these to include Π *)
 Ltac extract_sub_left :=
   match goal with
   | _ : _ |- _; _ // type2sequent (?A <: ?B),, ?t1 .⊢ _ =>
