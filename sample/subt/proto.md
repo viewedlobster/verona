@@ -182,15 +182,11 @@ class_lookup(C, t...) = { /* clsbody */ }[t.../X...]
 Γ, A <: B ⊢ Δ
 
 
-
-// B, A ⊢ A, B // wrong
-// ----
-// B ⊢ A, A <: B
-// TODO: define Γ*
-// TODO: can we have Δ* on the right
-Γ*, A ⊢ B
+// Note: we need to remove Δ in the resulting context
+// c.f. example with Δ = A <: B
+A <: B; Π, Γ*, A ⊢ B
 ---- [subt-right]
-Γ ⊢ Δ, A <: B
+Π; Γ ⊢ Δ, A <: B
 
 
 alias_lookup(α, t...) = A[X...]
@@ -205,9 +201,24 @@ alias_lookup(α) = A[X...]
 Γ ⊢ Δ, α[t...]
 
 
+
+Γ*, A ⊢ Δ*, B
+----
+
+
+
+Γ' ⊢ Δ', A <: B
+----
+... // contains type expansion (i.e, alias-left, alias-right, class-left)
+----
+Γ ⊢ Δ, A <: B
+
+// can we connect the proof
+
+
 class_lookup(c) = A, X... // A has holes with X...
 i fresh
-Γ, Selfᵢ <: c[t...], c[t...] <: Selfᵢ, A[Selfᵢ/Self][t.../X...] ⊢ Δ[Selfᵢ/Self]
+Γ, A[t.../X...] ⊢ Δ
 ---- [cls-left]
 Γ, c[t...] ⊢ Δ
 // what are the ramifications of having one single Self?
@@ -215,15 +226,15 @@ i fresh
 
 
 // type JSON example needs assumption that c[t...] <: c[t'...]
-∀i. Γ, c[t...] <: c[t'...] ⊢ Δ, (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
+∀i. Γ ⊢ Δ, (tᵢ <: t'ᵢ) & (t'ᵢ <: tᵢ)
 ---- [cls-right]
 Γ, c[t...] ⊢ Δ, c[t'...]
 
 
 // up to renaming of parameters X...
-Γ, τ{ ... } <: σ{ ... } ⊢ s'' <: t''
-∀j.   Γ, τ{ ... } <: σ{ ... }, s'' ⊢ sⱼ <: tⱼ
-Γ, τ{ ... } <: σ{ ... }, s'' ⊢ t' <: s'
+Γ ⊢ s'' <: t''
+∀j. Γ, s'' ⊢ sⱼ <: tⱼ
+Γ, s'' ⊢ t' <: s'
 ---- [method]
 Γ, τ{ f : [X...] t... -> t' where t''} ⊢ Δ, σ{ f : [X...] s... -> s' where s'' }
 // TODO write example to illustrate this rule
@@ -245,7 +256,53 @@ type JSON = String | Number | Array[JSON]
 
 type JSON' = String | Number | Array[JSON']
 
+// with the new rules
+(start) ⊢ JSON <: JSON'
+---- [subt-right]
+(JSON <: JSON')^.5, JSON ⊢ JSON'
+---- [alias-left] + [alias-right] + [disj-right]
+(JSON <: JSON')^.5, Number | Array[JSON] ⊢ Number, Array[JSON']
+---- [disj-left]
+(1) (JSON <: JSON')^.5, Number ⊢ Number, Array[JSON'] // discharge-syntactic
+(2) (JSON <: JSON')^.5, Array[JSON] ⊢ Number, Array[JSON']
 
+(2)
+---- [cls-right]
+(2.1) (JSON <: JSON')^.5 ⊢ JSON <: JSON'
+(2.2) (JSON <: JSON')^.5 ⊢ JSON' <: JSON // analogous to (start)
+
+
+(2.1)
+---- [subt-right]
+(JSON <: JSON')^1, JSON ⊢ JSON'
+---- [subt-left]
+JSON <: JSON', JSON' ⊢ JSON'
+---- [syntactic]
+
+
+(2.2) (JSON <: JSON')^.5, (JSON' <: JSON)^.5, JSON' ⊢ JSON
+----
+....
+----
+(2.2.1) (JSON <: JSON')^.5, (JSON' <: JSON)^.5, Number ⊢ Number, Array[JSON] // done by syntactic
+(2.2.2) (JSON <: JSON')^.5, (JSON' <: JSON)^.5, Array[JSON'] ⊢ Number, Array[JSON]
+
+
+(2.1.2) 
+---- [cls-right]
+(2.1.2.1) (JSON <: JSON')^.5, (JSON' <: JSON)^.5 ⊢ JSON' <: JSON
+(2.1.2.2) (JSON <: JSON')^.5, (JSON' <: JSON)^.5 ⊢ JSON <: JSON' // analogous to (2.1.2.1)
+
+
+(2.1.2.1)
+---- [subt-right]
+(JSON <: JSON')^.5, (JSON' <: JSON)^1, JSON' ⊢ JSON
+---- [subt-left]
+(JSON <: JSON')^.5, (JSON' <: JSON)^1, JSON ⊢ JSON
+---- [syntactic]
+
+
+// with the old rules
 // These trees are written upside down, i.e. conclusion at the top
 ⊢ JSON <: JSON'
 ---- [subt-right]
