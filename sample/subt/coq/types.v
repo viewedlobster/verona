@@ -294,6 +294,7 @@ Local Hint Resolve sub_bot_in_left : verona.
 Local Hint Resolve sub_top_in_right : verona.
 Local Hint Resolve sub_sub_singleton_right : verona.
 
+(*
 Set Warnings "-cast-in-pattern".
 
 Ltac extract_sub_left :=
@@ -331,6 +332,7 @@ Ltac extract_sub_right :=
       by set_prove; apply SubSubRight
   end.
 Local Hint Extern 1 => extract_sub_right : verona.
+*)
 
 Lemma push_filter : forall Γ a b,
     [[Γ,, a <: b]] = [[Γ]],, a <: b.
@@ -356,17 +358,28 @@ Proof.
 Qed.
 
 Ltac push_filter :=
+  repeat
   match goal with
-  | _ : _ |- context[ [[_,, _ <: _]] ] => rewrite push_filter
+  | _ : _ |- context[ [[_,, type2sequent (_ <: _)]] ] => rewrite push_filter
   | _ : _ |- context[ [[type2sequent (_ <: _)]] ] => rewrite push_filter_singleton
   end.
-
 Local Hint Extern 1 => push_filter : verona.
 
 Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
 
 Tactic Notation "rotate_sequent*" := rotate_sequent; auto_star.
 Tactic Notation "rotate_sequent~" := rotate_sequent; auto_tilde.
+
+Set Warnings "-cast-in-pattern".
+
+Ltac find_sub_right :=
+  match goal with
+  | _ : _ |- _; _ // _ .; _ .⊢ type2sequent (?A <: ?B) =>
+      apply sub_sub_singleton_right
+  | _ : _ |- _; _ // _ .;  _ .⊢ _ ,, type2sequent (?A <: ?B) =>
+      apply (sub_sub_in_right A B); [set_prove | push_filter]
+  end.
+Local Hint Extern 1 => find_sub_right : verona.
 
 Ltac syntactic_right :=
   match goal with
@@ -437,7 +450,7 @@ Example ex_sub_trans : forall Π Γ Δ a b c cls als,
     cls; als // Π .; Γ,, a <: b,, b <: c .⊢ Δ,, a <: c.
 Proof.
   introv.
-  apply* (sub_sub_in_right a c). repeat rewrite push_filter.
+  apply* (sub_sub_in_right a c). push_filter.
   apply* (sub_sub_in_left a b).
   apply* (sub_sub_in_left b c).
 (*  auto with verona. *)
@@ -447,7 +460,7 @@ Example ex_sub_trans' : forall Π Γ Δ a b c cls als,
     cls; als // Π .; Γ,, b <: c,, a <: b .⊢ Δ,, a <: c.
 Proof.
   introv.
-  apply* (sub_sub_in_right a c). repeat rewrite push_filter.
+  apply* (sub_sub_in_right a c). push_filter.
   apply* (sub_sub_in_left a b).
   apply* (sub_sub_in_left b c).
 (*  auto with verona. *)
@@ -457,7 +470,7 @@ Example ex_sub_trans_twice : forall Π Γ Δ a b c d cls als,
     cls; als // Π .; Γ,, a <: b,, b <: c,, c <: d .⊢ Δ,, a <: d.
 Proof.
   introv.
-  apply* (sub_sub_in_right a d). repeat rewrite push_filter.
+  apply* (sub_sub_in_right a d). push_filter.
   apply* (sub_sub_in_left a b).
   apply* (sub_sub_in_left b c).
   apply* (sub_sub_in_left c d).
@@ -468,7 +481,7 @@ Example ex_sub_trans_twice' : forall Π Γ Δ a b c d cls als,
     cls; als // Π .; Γ,, c <: d,, b <: c,, a <: b .⊢ Δ,, a <: d.
 Proof.
   introv.
-  apply* (sub_sub_in_right a d). repeat rewrite push_filter.
+  apply* (sub_sub_in_right a d). push_filter.
   apply* (sub_sub_in_left a b).
   apply* (sub_sub_in_left b c).
   apply* (sub_sub_in_left c d).
@@ -479,7 +492,7 @@ Example ex_sub_trans_thrice : forall Π Γ Δ a b c d e cls als,
     cls; als // Π .; Γ,, a <: b,, b <: c,, c <: d,, d <: e .⊢ Δ,, a <: e.
 Proof.
   introv.
-  apply* (sub_sub_in_right a e). repeat rewrite push_filter.
+  apply* (sub_sub_in_right a e). push_filter.
   apply* (sub_sub_in_left a b).
   apply* (sub_sub_in_left b c).
   apply* (sub_sub_in_left c d).
@@ -491,7 +504,7 @@ Example ex_sub_trans_no_context_right : forall Π Γ a b c cls als,
     cls; als // Π .; Γ,, a <: b,, b <: c .⊢ a <: c.
 Proof.
   introv.
-  apply* (sub_sub_in_right a c). repeat rewrite push_filter.
+  apply* (sub_sub_in_right a c). push_filter.
   apply* (sub_sub_in_left a b).
   apply* (sub_sub_in_left b c).
 (*  auto 6 with verona. *)
@@ -501,7 +514,7 @@ Example ex_sub_trans_no_context_left : forall Π Δ a b c cls als,
     cls; als // Π .; type2sequent (a <: b),, b <: c .⊢ Δ,, a <: c.
 Proof.
   introv.
-  apply* (sub_sub_in_right a c). repeat rewrite push_filter. rewrite push_filter_singleton.
+  apply* (sub_sub_in_right a c). push_filter.
   apply* (sub_sub_in_left b c).
   apply* (sub_sub_in_left a b).
 (*  eauto 6 with verona. *)
@@ -511,7 +524,7 @@ Example ex_sub_trans_no_context : forall Π (a b c : type) cls als,
     cls; als // Π .; type2sequent (a <: b),, b <: c .⊢ a <: c.
 Proof.
   introv.
-  apply* (sub_sub_in_right a c). repeat rewrite push_filter. rewrite push_filter_singleton.
+  apply* (sub_sub_in_right a c). push_filter.
   apply* (sub_sub_in_left b c).
   apply* (sub_sub_in_left a b).
 (*  eauto 6 with verona. *)
