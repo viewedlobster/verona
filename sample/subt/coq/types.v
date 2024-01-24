@@ -296,19 +296,18 @@ Local Hint Resolve sub_sub_singleton_right : verona.
 
 Set Warnings "-cast-in-pattern".
 
-(* TODO: Update these to include Π *)
 Ltac extract_sub_left :=
   match goal with
-  | _ : _ |- _; _ // type2sequent (?A <: ?B),, ?t1 .⊢ _ =>
+  | _ : _ |- _; _ // _ .; type2sequent (?A <: ?B),, ?t1 .⊢ _ =>
       replace (type2sequent (A <: B),, t1) with (type2sequent t1,, A <: B)
       by set_prove; apply SubSubLeft
-  | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1 .⊢ _ =>
+  | _ : _ |- _; _ // _ .; ?Γ,, ?A <: ?B,, ?t1 .⊢ _ =>
       replace (Γ,, A <: B,, t1) with (Γ,, t1,, A <: B)
       by set_prove; apply SubSubLeft
-  | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1,, ?t2 .⊢ _ =>
+  | _ : _ |- _; _ // _ .; ?Γ,, ?A <: ?B,, ?t1,, ?t2 .⊢ _ =>
       replace (Γ,, A <: B,, t1,, t2) with (Γ,, t1,, t2,, A <: B)
       by set_prove; apply SubSubLeft
-  | _ : _ |- _; _ // ?Γ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 .⊢ _ =>
+  | _ : _ |- _; _ // _ .; ?Γ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 .⊢ _ =>
       replace (Γ,, A <: B,, t1,, t2,, t3) with (Γ,, t1,, t2,, t3,, A <: B)
       by set_prove; apply SubSubLeft
   end.
@@ -316,18 +315,18 @@ Local Hint Extern 2 => extract_sub_left : verona.
 
 Ltac extract_sub_right :=
   match goal with
-  | _ : _ |- _; _ // _ .⊢ type2sequent (?A <: ?B) =>
+  | _ : _ |- _; _ // _ .; _ .⊢ type2sequent (?A <: ?B) =>
       apply sub_sub_singleton_right
-  | _ : _ |- _; _ // _ .⊢ type2sequent (?A <: ?B),, ?t1 =>
+  | _ : _ |- _; _ // _ .;  _ .⊢ type2sequent (?A <: ?B),, ?t1 =>
       replace (type2sequent (A <: B),, t1) with (type2sequent t1,, A <: B)
       by set_prove; apply SubSubRight
-  | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1 =>
+  | _ : _ |- _; _ // _ .;  _ .⊢ ?Δ,, ?A <: ?B,, ?t1 =>
       replace (Δ,, A <: B,, t1) with (Δ,, A <: B,, t1)
       by set_prove; apply SubSubRight
-  | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2 =>
+  | _ : _ |- _; _ // _ .;  _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2 =>
       replace (Δ,, A <: B,, t1,, t2) with (Δ,, A <: B,, t1,, t2)
       by set_prove; apply SubSubRight
-  | _ : _ |- _; _ // _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 =>
+  | _ : _ |- _; _ // _ .;  _ .⊢ ?Δ,, ?A <: ?B,, ?t1,, ?t2,, ?t3 =>
       replace (Δ,, A <: B,, t1,, t2,, t3) with (Δ,, A <: B,, t1,, t2,, t3)
       by set_prove; apply SubSubRight
   end.
@@ -358,8 +357,8 @@ Qed.
 
 Ltac push_filter :=
   match goal with
-  | _ : _ |- context[ [[_,, _ <: _]] ] => rewrite push_filter; extract_sub_left
-  | _ : _ |- context[ [[type2sequent (_ <: _)]] ] => rewrite push_filter_singleton; extract_sub_left
+  | _ : _ |- context[ [[_,, _ <: _]] ] => rewrite push_filter
+  | _ : _ |- context[ [[type2sequent (_ <: _)]] ] => rewrite push_filter_singleton
   end.
 
 Local Hint Extern 1 => push_filter : verona.
@@ -369,108 +368,158 @@ Ltac rotate_sequent := rewrite union_comm; repeat rewrite union_assoc.
 Tactic Notation "rotate_sequent*" := rotate_sequent; auto_star.
 Tactic Notation "rotate_sequent~" := rotate_sequent; auto_tilde.
 
+Ltac syntactic_right :=
+  match goal with
+  | _ : _ |- _; _ // _ .; _ .⊢ type2sequent (?A) =>
+      apply (SubSyntactic _ _ _ A)
+  | _ : _ |- _; _ // _ .; _ .⊢ _ ,, type2sequent (?A) =>
+      apply (SubSyntactic _ _ _ A)
+  | _ : _ |- _; _ // _ .; _ .⊢ _ ,, type2sequent (?A) ,, _ =>
+      apply (SubSyntactic _ _ _ A)
+  end.
+Local Hint Extern 1 => syntactic_right : verona.
+
 (************)
 (* Examples *)
 (************)
 
-Example ex_conj_elimination1 : forall Γ Δ a b cls als,
-    cls; als // Γ,, a && b .⊢ Δ,, a.
+(* TODO: Make these work again, probably by adding hints and
+tactics for when and how to use sub_sub_in_left/right *)
+Example ex_conj_elimination1 : forall Π Γ Δ a b cls als,
+    cls; als // Π .; Γ,, a && b .⊢ Δ,, a.
 Proof.
   eauto with verona.
 Qed.
 
-Example ex_conj_elimination2 : forall Γ Δ a b cls als,
-    cls; als // Γ,, a && b .⊢ Δ,, b.
+Example ex_conj_elimination2 : forall Π Γ Δ a b cls als,
+    cls; als // Π .; Γ,, a && b .⊢ Δ,, b.
 Proof.
   eauto with verona.
 Qed.
 
-Example ex_conj_introduction : forall Γ Δ a b cls als,
-    cls; als // Γ,, a,, b .⊢ Δ,, a && b.
+Example ex_conj_introduction : forall Π Γ Δ (a b : type) cls als,
+    cls; als // Π .; Γ,, a,, b .⊢ Δ,, a && b.
 Proof.
   eauto with verona.
 Qed.
 
-Example ex_disj_introduction1 : forall Γ Δ a b cls als,
-    cls; als // Γ,, a .⊢ Δ,, a || b.
+Example ex_disj_introduction1 : forall Π Γ Δ (a b : type) cls als,
+    cls; als // Π .; Γ,, a .⊢ Δ,, a || b.
 Proof.
   eauto with verona.
 Qed.
 
-Example ex_disj_introduction2 : forall Γ Δ a b cls als,
-    cls; als // Γ,, b .⊢ Δ,, a || b.
+Example ex_disj_introduction2 : forall Π Γ Δ (a b : type) cls als,
+    cls; als // Π .; Γ,, b .⊢ Δ,, a || b.
 Proof.
   eauto with verona.
 Qed.
 
-Example ex_disj_elimination : forall Γ Δ a b cls als,
-    cls; als // Γ,, a || b .⊢ Δ,, a,, b.
+Example ex_disj_elimination : forall Π Γ Δ a b cls als,
+    cls; als // Π .; Γ,, a || b .⊢ Δ,, a,, b.
 Proof.
   eauto with verona.
 Qed.
 
-Example ex_deep_ex_falso : forall Γ Δ a b c d e cls als,
-    cls; als // Γ,, Bot,, a,, b,, c,, d,, e .⊢ Δ.
+Example ex_deep_ex_falso : forall Π Γ Δ a b c d e cls als,
+    cls; als // Π .; Γ,, Bot,, a,, b,, c,, d,, e .⊢ Δ.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_deep_tauto : forall Γ Δ a b c d e cls als,
-    cls; als // Γ .⊢ Δ,, Top,, a,, b,, c,, d,, e.
+Example ex_deep_tauto : forall Π Γ Δ a b c d e cls als,
+    cls; als // Π .; Γ .⊢ Δ,, Top,, a,, b,, c,, d,, e.
 Proof.
   auto with verona.
 Qed.
 
-Example ex_sub_trans : forall Γ Δ a b c cls als,
-    cls; als // Γ,, a <: b,, b <: c .⊢ Δ,, a <: c.
+Example ex_sub_trans : forall Π Γ Δ a b c cls als,
+    cls; als // Π .; Γ,, a <: b,, b <: c .⊢ Δ,, a <: c.
 Proof.
-  auto with verona.
+  introv.
+  apply* (sub_sub_in_right a c). repeat rewrite push_filter.
+  apply* (sub_sub_in_left a b).
+  apply* (sub_sub_in_left b c).
+(*  auto with verona. *)
 Qed.
 
-Example ex_sub_trans' : forall Γ Δ a b c cls als,
-    cls; als // Γ,, b <: c,, a <: b .⊢ Δ,, a <: c.
+Example ex_sub_trans' : forall Π Γ Δ a b c cls als,
+    cls; als // Π .; Γ,, b <: c,, a <: b .⊢ Δ,, a <: c.
 Proof.
-  auto with verona.
+  introv.
+  apply* (sub_sub_in_right a c). repeat rewrite push_filter.
+  apply* (sub_sub_in_left a b).
+  apply* (sub_sub_in_left b c).
+(*  auto with verona. *)
 Qed.
 
-Example ex_sub_trans_twice : forall Γ Δ a b c d cls als,
-    cls; als // Γ,, a <: b,, b <: c,, c <: d .⊢ Δ,, a <: d.
+Example ex_sub_trans_twice : forall Π Γ Δ a b c d cls als,
+    cls; als // Π .; Γ,, a <: b,, b <: c,, c <: d .⊢ Δ,, a <: d.
 Proof.
-  auto with verona.
+  introv.
+  apply* (sub_sub_in_right a d). repeat rewrite push_filter.
+  apply* (sub_sub_in_left a b).
+  apply* (sub_sub_in_left b c).
+  apply* (sub_sub_in_left c d).
+(*  auto with verona. *)
 Qed.
 
-Example ex_sub_trans_twice' : forall Γ Δ a b c d cls als,
-    cls; als // Γ,, c <: d,, b <: c,, a <: b .⊢ Δ,, a <: d.
+Example ex_sub_trans_twice' : forall Π Γ Δ a b c d cls als,
+    cls; als // Π .; Γ,, c <: d,, b <: c,, a <: b .⊢ Δ,, a <: d.
 Proof.
-  auto 6 with verona.
+  introv.
+  apply* (sub_sub_in_right a d). repeat rewrite push_filter.
+  apply* (sub_sub_in_left a b).
+  apply* (sub_sub_in_left b c).
+  apply* (sub_sub_in_left c d).
+(*  auto 6 with verona. *)
 Qed.
 
-Example ex_sub_trans_thrice : forall Γ Δ a b c d e cls als,
-    cls; als // Γ,, a <: b,, b <: c,, c <: d,, d <: e .⊢ Δ,, a <: e.
+Example ex_sub_trans_thrice : forall Π Γ Δ a b c d e cls als,
+    cls; als // Π .; Γ,, a <: b,, b <: c,, c <: d,, d <: e .⊢ Δ,, a <: e.
 Proof.
-  auto 7 with verona.
+  introv.
+  apply* (sub_sub_in_right a e). repeat rewrite push_filter.
+  apply* (sub_sub_in_left a b).
+  apply* (sub_sub_in_left b c).
+  apply* (sub_sub_in_left c d).
+  apply* (sub_sub_in_left d e).
+(*  auto 7 with verona. *)
 Qed.
 
-Example ex_sub_trans_no_context_right : forall Γ a b c cls als,
-    cls; als // Γ,, a <: b,, b <: c .⊢ a <: c.
+Example ex_sub_trans_no_context_right : forall Π Γ a b c cls als,
+    cls; als // Π .; Γ,, a <: b,, b <: c .⊢ a <: c.
 Proof.
-  auto 6 with verona.
+  introv.
+  apply* (sub_sub_in_right a c). repeat rewrite push_filter.
+  apply* (sub_sub_in_left a b).
+  apply* (sub_sub_in_left b c).
+(*  auto 6 with verona. *)
 Qed.
 
-Example ex_sub_trans_no_context_left : forall Δ a b c cls als,
-    cls; als // type2sequent (a <: b),, b <: c .⊢ Δ,, a <: c.
+Example ex_sub_trans_no_context_left : forall Π Δ a b c cls als,
+    cls; als // Π .; type2sequent (a <: b),, b <: c .⊢ Δ,, a <: c.
 Proof.
-  eauto 6 with verona.
+  introv.
+  apply* (sub_sub_in_right a c). repeat rewrite push_filter. rewrite push_filter_singleton.
+  apply* (sub_sub_in_left b c).
+  apply* (sub_sub_in_left a b).
+(*  eauto 6 with verona. *)
 Qed.
 
-Example ex_sub_trans_no_context : forall a b c cls als,
-    cls; als // type2sequent (a <: b),, b <: c .⊢ a <: c.
+Example ex_sub_trans_no_context : forall Π (a b c : type) cls als,
+    cls; als // Π .; type2sequent (a <: b),, b <: c .⊢ a <: c.
 Proof.
-  eauto 6 with verona.
+  introv.
+  apply* (sub_sub_in_right a c). repeat rewrite push_filter. rewrite push_filter_singleton.
+  apply* (sub_sub_in_left b c).
+  apply* (sub_sub_in_left a b).
+(*  eauto 6 with verona. *)
 Qed.
 
-Example ex_sub_red_herring : forall Γ Δ a b c cls als,
-    cls; als // Γ,, a,, b <: c .⊢ Δ,, a,, c <: b.
+Example ex_sub_red_herring : forall Π Γ Δ (a b c : type) cls als,
+    cls; als // Π .; Γ,, a,, b <: c .⊢ Δ,, a,, c <: b.
 Proof.
+  introv.
   eauto with verona.
 Qed.
