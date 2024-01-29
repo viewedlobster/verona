@@ -274,6 +274,14 @@ Proof.
     assumption.
 Defined.
 
+Lemma wf_var_subts {n : var_name} t (ts : list vtype) :
+  (vtype_is_wf clst alst (length ts) t) ->
+  (Forall (vtype_is_wf clst alst n) ts) -> wf_vtype n.
+Proof.
+  intros wf_t wf_ts.
+  induction t.
+  - inversion wf_t.
+
 Definition wf_class_lookup {n: var_name} c ts (wf : vtype_is_wf clst alst n (c c[ts])) : wf_vtype n.
 Proof.
 
