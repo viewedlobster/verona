@@ -39,7 +39,7 @@ reachability: a cyclic hyperedge is a reachable path if all of its acyclic
 predececessors are reachable.
 *)
 
-Inductive vtype : Type := 
+Inductive vtype : Type :=
   | TDisj : vtype -> vtype -> vtype
   | TConj : vtype -> vtype -> vtype
   | TClass : class_name -> list vtype -> vtype
@@ -79,7 +79,7 @@ Notation " Γ1 ,, Γ2 " := (Γ1 ++ Γ2) (at level 83).
 Definition type2gamma (t : vtype) := t :: nil.
 Coercion type2gamma : vtype >-> vtseq.
 
-Fixpoint is_boxed (t : vtype) : bool := 
+Fixpoint is_boxed (t : vtype) : bool :=
   match t with
   | TConj t1 t2 => is_boxed t1 && is_boxed t2
   | TDisj t1 t2 => is_boxed t1 && is_boxed t2
@@ -92,7 +92,7 @@ Definition boxed : list vtype -> list vtype :=
 
 Notation "'[[' Γ ']]'" := (boxed Γ).
 
-Inductive pfboxed : vtype -> Prop := 
+Inductive pfboxed : vtype -> Prop :=
 | BoxedSub : forall t1 t2, pfboxed (TSub t1 t2)
 | BoxedConj : forall t1 t2,
   pfboxed t1 ->
@@ -108,7 +108,7 @@ Inductive pfboxed : vtype -> Prop :=
 (* Tables *)
 (**********)
 
-Definition vtype_table := list (nat * vtype).
+Definition vtype_table := list (var_name * vtype).
 
 Definition type_lookup := @List.nth_error (nat * vtype).
 
@@ -232,7 +232,7 @@ Record wf_vtype n : Type := mk_wf_vtype
 ; is_wf : vtype_is_wf clst alst n t
 }.
 
-Lemma wf_vtype_construct : forall n t, 
+Lemma wf_vtype_construct : forall n t,
     vtype_is_wf clst alst n t -> wf_vtype n.
 Proof.
   intros n t wf_pf.
@@ -274,13 +274,63 @@ Proof.
     assumption.
 Defined.
 
+Fixpoint id_map' (i : var_name) (n : var_name) :=
+  match n with
+  | 0 => nil
+  | S n' => TVar i :: id_map' (S i) n'
+  end.
+
+Definition id_map := id_map' 0.
+
+(*
+{X1 ~> X3}
+m [X](x: X)
+m [X1](x: X0, y: X1)
+~> shift!
+m [X1](x: X0, y: X2)
+*)
+
+Fixpoint shift (n : var_name) (t : vtype) :=
+  match t with
+  | TVar X => TVar (n + X)
+  | TDisj t1 t2 => TDisj (shift n t1) (shift n t2)
+  | TConj t1 t2 => TConj (shift n t1) (shift n t2)
+  | TClass c ts' => TClass c (map (shift n) ts')
+  | TAlias a ts' => TAlias a (map (shift n) ts')
+  | TTrait m n' ts_param t_ret t_where =>
+      (* TODO: What the shift? *)
+      TTrait m n' ts_param t_ret t_where
+  | TTop => TTop
+  | TBot => TBot
+  | TSub t1 t2 => TSub (shift n t1) (shift n t2)
+  end.
+
+Fixpoint subst (ts : list vtype) (t : vtype) :=
+  match t with
+  | TVar X =>
+      match List.nth_error ts X with
+      | Some t' => t'
+      | None => TVar X
+      end
+  | TDisj t1 t2 => TDisj (subst ts t1) (subst ts t2)
+  | TConj t1 t2 => TConj (subst ts t1) (subst ts t2)
+  | TClass c ts' => TClass c (map (subst ts) ts')
+  | TAlias a ts' => TAlias a (map (subst ts) ts')
+  | TTrait m n ts_param t_ret t_where =>
+      let ts' := id_map n ++ map (shift n) ts in
+      TTrait m n (map (subst ts') ts_param) (subst ts' t_ret) (subst ts' t_where)
+  | TTop => TTop
+  | TBot => TBot
+  | TSub t1 t2 => TSub (subst ts t1) (subst ts t2)
+  end.
+
 Lemma wf_var_subts {n : var_name} t (ts : list vtype) :
   (vtype_is_wf clst alst (length ts) t) ->
   (Forall (vtype_is_wf clst alst n) ts) -> wf_vtype n.
 Proof.
   intros wf_t wf_ts.
   induction t.
-  - inversion wf_t.
+  - apply mk_wf_vtype with (t := t1 || t2). inversion wf_t.
 
 Definition wf_class_lookup {n: var_name} c ts (wf : vtype_is_wf clst alst n (c c[ts])) : wf_vtype n.
 Proof.
