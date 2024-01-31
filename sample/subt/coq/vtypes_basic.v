@@ -2,6 +2,7 @@
 (* types for verona *)
 
 From Coq Require Import List.
+From Coq Require Import Nat.
 
 Module Verona.
 
@@ -283,27 +284,31 @@ Fixpoint id_map' (i : var_name) (n : var_name) :=
 Definition id_map := id_map' 0.
 
 (*
-{X1 ~> X3}
-m [X](x: X)
+{X0 ~> X3}
 m [X1](x: X0, y: X1)
+{X0 ~> X0, X1 ~> X4}
 ~> shift!
 m [X1](x: X0, y: X2)
 *)
 
-Fixpoint shift (n : var_name) (t : vtype) :=
+Fixpoint shift_above (bound : var_name) (shft : var_name) (t : vtype) : vtype := 
   match t with
-  | TVar X => TVar (n + X)
-  | TDisj t1 t2 => TDisj (shift n t1) (shift n t2)
-  | TConj t1 t2 => TConj (shift n t1) (shift n t2)
-  | TClass c ts' => TClass c (map (shift n) ts')
-  | TAlias a ts' => TAlias a (map (shift n) ts')
-  | TTrait m n' ts_param t_ret t_where =>
-      (* TODO: What the shift? *)
-      TTrait m n' ts_param t_ret t_where
+  | TVar X => if bound <=? X then TVar (shft + X) else TVar X
+  | TDisj t1 t2 => TDisj (shift_above bound shft t1) (shift_above bound shft t2)
+  | TConj t1 t2 => TConj (shift_above bound shft t1) (shift_above bound shft t2)
+  | TClass c ts' => TClass c (map (shift_above bound shft) ts')
+  | TAlias a ts' => TAlias a (map (shift_above bound shft) ts')
+  | TTrait m n_param ts_param t_ret t_where =>
+      TTrait m n_param
+            (map (shift_above (n_param + bound) shft) ts_param)
+            (shift_above (n_param + bound) shft t_ret)
+            (shift_above (n_param + bound) shft t_where)
   | TTop => TTop
   | TBot => TBot
-  | TSub t1 t2 => TSub (shift n t1) (shift n t2)
+  | TSub t1 t2 => TSub (shift_above bound shft t1) (shift_above bound shft t2)
   end.
+
+Definition shift := shift_above 0.
 
 Fixpoint subst (ts : list vtype) (t : vtype) :=
   match t with
@@ -316,9 +321,9 @@ Fixpoint subst (ts : list vtype) (t : vtype) :=
   | TConj t1 t2 => TConj (subst ts t1) (subst ts t2)
   | TClass c ts' => TClass c (map (subst ts) ts')
   | TAlias a ts' => TAlias a (map (subst ts) ts')
-  | TTrait m n ts_param t_ret t_where =>
-      let ts' := id_map n ++ map (shift n) ts in
-      TTrait m n (map (subst ts') ts_param) (subst ts' t_ret) (subst ts' t_where)
+  | TTrait m n_param ts_param t_ret t_where =>
+      let ts' := id_map n_param ++ (map (shift n_param) ts) in
+      TTrait m n_param (map (subst ts') ts_param) (subst ts' t_ret) (subst ts' t_where)
   | TTop => TTop
   | TBot => TBot
   | TSub t1 t2 => TSub (subst ts t1) (subst ts t2)
